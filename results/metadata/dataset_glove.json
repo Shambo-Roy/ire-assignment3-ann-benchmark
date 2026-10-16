@@ -1,0 +1,252 @@
+{
+  "dataset": "glove",
+  "expected_path": "C:\\shambo.roy@iiit.ac.in\\Assignment 3\\data\\glove-100-angular.hdf5",
+  "download_url": "http://ann-benchmarks.com/glove-100-angular.hdf5",
+  "metadata": {
+    "path": "C:\\shambo.roy@iiit.ac.in\\Assignment 3\\data\\glove-100-angular.hdf5",
+    "file_size_bytes": 485413888,
+    "datasets": {
+      "distances": {
+        "shape": [
+          10000,
+          100
+        ],
+        "dtype": "float32",
+        "chunks": null,
+        "compression": null
+      },
+      "neighbors": {
+        "shape": [
+          10000,
+          100
+        ],
+        "dtype": "int32",
+        "chunks": null,
+        "compression": null
+      },
+      "test": {
+        "shape": [
+          10000,
+          100
+        ],
+        "dtype": "float32",
+        "chunks": null,
+        "compression": null
+      },
+      "train": {
+        "shape": [
+          1183514,
+          100
+        ],
+        "dtype": "float32",
+        "chunks": null,
+        "compression": null
+      }
+    },
+    "attrs": {
+      "distance": "angular"
+    },
+    "missing_keys": []
+  },
+  "checks": [
+    {
+      "check": "required_keys_present",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "check": "train_shape",
+      "passed": true,
+      "detail": {
+        "found": [
+          1183514,
+          100
+        ],
+        "expected": [
+          1183514,
+          100
+        ]
+      }
+    },
+    {
+      "check": "train_dtype_float32",
+      "passed": true,
+      "detail": "float32"
+    },
+    {
+      "check": "query_shape",
+      "passed": true,
+      "detail": {
+        "found": [
+          10000,
+          100
+        ],
+        "expected": [
+          10000,
+          100
+        ]
+      }
+    },
+    {
+      "check": "query_dtype_float32",
+      "passed": true,
+      "detail": "float32"
+    },
+    {
+      "check": "gt_rows_match_queries",
+      "passed": true,
+      "detail": {
+        "neighbors_rows": 10000,
+        "queries": 10000
+      }
+    },
+    {
+      "check": "gt_has_at_least_10_columns",
+      "passed": true,
+      "detail": 100
+    },
+    {
+      "check": "gt_distances_shape_matches",
+      "passed": true,
+      "detail": [
+        10000,
+        100
+      ]
+    },
+    {
+      "check": "neighbors_integer_dtype",
+      "passed": true,
+      "detail": "int32"
+    },
+    {
+      "check": "distance_attr_matches_spec",
+      "passed": true,
+      "detail": {
+        "attr": "angular",
+        "expected": "angular"
+      }
+    },
+    {
+      "check": "train_no_nan",
+      "passed": true,
+      "detail": 0
+    },
+    {
+      "check": "train_no_inf",
+      "passed": true,
+      "detail": 0
+    },
+    {
+      "check": "train_zero_norm_rows_recorded",
+      "passed": true,
+      "detail": 0
+    },
+    {
+      "check": "query_no_nan",
+      "passed": true,
+      "detail": 0
+    },
+    {
+      "check": "query_no_inf",
+      "passed": true,
+      "detail": 0
+    },
+    {
+      "check": "query_zero_norm_rows_recorded",
+      "passed": true,
+      "detail": 0
+    },
+    {
+      "check": "gt_ids_in_range",
+      "passed": true,
+      "detail": {
+        "min": 0,
+        "max": 1183513,
+        "n_train": 1183514
+      }
+    },
+    {
+      "check": "gt_distances_sorted_per_row",
+      "passed": true,
+      "detail": {
+        "rows_not_sorted": 0
+      }
+    },
+    {
+      "check": "spot_check_stored_distances_reproduced",
+      "passed": true,
+      "detail": 1.4901161193847656e-07
+    },
+    {
+      "check": "spot_check_order_preserved_in_our_metric",
+      "passed": true,
+      "detail": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ]
+    },
+    {
+      "check": "normalised_sample_unit_norm",
+      "passed": true,
+      "detail": {
+        "sample_size": 10000,
+        "max_dev": 2.384185791015625e-07,
+        "zero_rows_in_sample": 0
+      }
+    },
+    {
+      "check": "query_split_5000_5000",
+      "passed": true,
+      "detail": {
+        "tune": [
+          0,
+          5000
+        ],
+        "eval": [
+          5000,
+          10000
+        ]
+      }
+    }
+  ],
+  "train_stats": {
+    "nan_count": 0,
+    "inf_count": 0,
+    "zero_norm_rows": 0,
+    "norm_min": 0.04109325632452965,
+    "norm_max": 18.67624855041504
+  },
+  "query_stats": {
+    "nan_count": 0,
+    "inf_count": 0,
+    "zero_norm_rows": 0,
+    "norm_min": 1.1085176467895508,
+    "norm_max": 17.09185791015625
+  },
+  "gt_ties_at_rank10": 1,
+  "spot_check": {
+    "query_ids": [
+      2040,
+      2271,
+      3165,
+      3911,
+      6424,
+      6761,
+      6985,
+      7880,
+      7970,
+      9883
+    ],
+    "max_abs_error_vs_stored": 1.4901161193847656e-07,
+    "relation": "sq_l2_normalised/2 == stored"
+  },
+  "status": "PASSED"
+}

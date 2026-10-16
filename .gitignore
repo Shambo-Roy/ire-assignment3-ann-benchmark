@@ -1,0 +1,19 @@
+# Environments
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Datasets and index files must never be committed or zipped
+data/
+*.hdf5
+*.h5
+*.fvecs
+*.ivecs
+*.bvecs
+*.npy
+*.index
+*.faiss
+*.bin
+results/indexes/
+results/cache/

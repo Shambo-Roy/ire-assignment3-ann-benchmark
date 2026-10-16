@@ -1,5 +1,5 @@
 {
-  "timestamp_utc": "2026-10-16T10:59:07+00:00",
+  "timestamp_utc": "2026-10-16T12:12:50+00:00",
   "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
   "python_executable": "C:\\shambo.roy@iiit.ac.in\\Assignment 3\\code\\.venv\\Scripts\\python.exe",
   "platform": "Windows-11-10.0.26200-SP0",
@@ -19,7 +19,7 @@
   },
   "cpu_count_physical": 14,
   "ram_total_gb": 15.68,
-  "ram_available_gb_at_collection": 6.97,
+  "ram_available_gb_at_collection": 5.6,
   "cpu_freq_max_mhz": 2500.0,
   "faiss_omp_max_threads_default": 20,
   "faiss_compile_options": ""

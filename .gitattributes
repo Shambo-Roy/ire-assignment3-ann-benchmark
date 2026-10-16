@@ -1,0 +1,3 @@
+# Keep LF line endings so run_all.sh works in bash on every OS
+* text=auto eol=lf
+*.hdf5 binary

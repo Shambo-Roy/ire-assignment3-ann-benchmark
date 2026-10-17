@@ -28,6 +28,13 @@ def test_inspect_flags_missing_keys(tmp_path):
     assert set(inspect_hdf5(p)["missing_keys"]) == {"test", "neighbors", "distances"}
 
 
+def test_results_dir_defaults_to_top_level_outside_repo():
+    from src.config import REPO_ROOT, RESULTS_DIR
+    # Submission layout: <submission>/code (repo) and <submission>/results side by side.
+    assert RESULTS_DIR == (REPO_ROOT.parent / "results").resolve()
+    assert REPO_ROOT not in RESULTS_DIR.parents
+
+
 def test_registry_paths_are_relative_to_repo_not_machine(monkeypatch, tmp_path):
     monkeypatch.setenv("ANN_DATA_DIR", str(tmp_path))
     assert data_dir() == tmp_path.resolve()

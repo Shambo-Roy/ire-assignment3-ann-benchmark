@@ -15,5 +15,7 @@ data/
 *.index
 *.faiss
 *.bin
-results/indexes/
-results/cache/
+
+# Outputs belong in the top-level ../results and ../ai_log, never inside the repo
+results/
+ai_log/

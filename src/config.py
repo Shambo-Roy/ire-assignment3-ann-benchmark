@@ -1,9 +1,11 @@
 """Central configuration: paths, dataset registry and fixed experimental constants.
 
-Paths never depend on the author's machine. The data directory is resolved as:
-  1. the environment variable ANN_DATA_DIR, if set;
-  2. otherwise ``<repo>/../data`` (a sibling of the ``code/`` git repository),
-     so datasets can never be committed or zipped together with the code by accident.
+Paths never depend on the author's machine. The repository is the ``code/`` folder of the
+submission, and data and results live next to it, matching the zip layout:
+
+    <submission>/code/      this git repository
+    <submission>/data/      datasets (ANN_DATA_DIR overrides; never zipped)
+    <submission>/results/   results.csv, figures/, metadata/ (ANN_RESULTS_DIR overrides)
 """
 
 from __future__ import annotations
@@ -13,7 +15,14 @@ from dataclasses import dataclass
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-RESULTS_DIR = REPO_ROOT / "results"
+
+
+def _dir_from_env(var: str, default: Path) -> Path:
+    env = os.environ.get(var)
+    return Path(env).expanduser().resolve() if env else default.resolve()
+
+
+RESULTS_DIR = _dir_from_env("ANN_RESULTS_DIR", REPO_ROOT.parent / "results")
 FIGURES_DIR = RESULTS_DIR / "figures"
 METADATA_DIR = RESULTS_DIR / "metadata"
 
@@ -29,8 +38,7 @@ K = 10
 
 
 def data_dir() -> Path:
-    env = os.environ.get("ANN_DATA_DIR")
-    return Path(env).expanduser().resolve() if env else (REPO_ROOT.parent / "data").resolve()
+    return _dir_from_env("ANN_DATA_DIR", REPO_ROOT.parent / "data")
 
 
 @dataclass(frozen=True)

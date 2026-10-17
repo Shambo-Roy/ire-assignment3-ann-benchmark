@@ -50,8 +50,12 @@ def run_metadata(experiment_id: str, repo: Path = REPO_ROOT) -> dict:
 
 
 def _section(text: str, section: str) -> str | None:
-    """Body of the '## <section>...' heading up to the next '## ' heading."""
-    pat = re.compile(rf"^##\s+{re.escape(section)}\b.*?$(.*?)(?=^##\s|\Z)", re.M | re.S)
+    """Body of the '## <section>...' heading up to the next '## ' heading.
+
+    An optional numbering prefix is allowed, e.g. '## 1. Part 3 — Compression'.
+    Deeper headings ('### ...') stay inside the section.
+    """
+    pat = re.compile(rf"^##\s+(?:\d+[.)]\s*)?{re.escape(section)}\b.*?$(.*?)(?=^##\s|\Z)", re.M | re.S)
     m = pat.search(text)
     return m.group(1).strip() if m else None
 

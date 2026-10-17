@@ -69,6 +69,17 @@ def test_guard_refuses_missing_section_and_short_text(repo):
         require_committed_hypothesis("Part 4", repo)
 
 
+def test_section_parser_accepts_numbered_headings_and_keeps_subsections():
+    from src.provenance import _section
+    text = ("# H\n## 1. Part 3 — Compression\n### Hypothesis 3.1\nalpha beta\n### Hypothesis 3.2\ngamma\n"
+            "## 2. Part 4 — Dimensionality\ndelta\n## 3. Safeguards\nepsilon\n")
+    p3 = _section(text, "Part 3")
+    assert "alpha beta" in p3 and "gamma" in p3 and "delta" not in p3
+    assert _section(text, "Part 4").strip() == "delta"
+    assert _section("## Part 3\nplain\n", "Part 3").strip() == "plain"
+    assert _section("## 1. Part 30\nx\n", "Part 3") is None
+
+
 def test_guard_refuses_non_utf8_file_cleanly(repo):
     (repo / "hypothesis.md").write_bytes(WRITTEN.encode("cp1252"))   # em-dash -> 0x97
     git(repo, "commit", "-q", "-am", "cp1252 hypothesis")

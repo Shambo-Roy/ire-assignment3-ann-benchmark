@@ -102,11 +102,13 @@ def main(argv=None) -> int:
             builds[(r["index_type"], r["build_params"])].append(r)
         for (it, bp), rs in sorted(builds.items()):
             b = max(rs, key=lambda r: _f(r, "recall_at_10"))
-            e = [r for r in ev if r["index_type"] == it and r["build_params"] == bp]
+            # eval recall of the SAME configuration, if it was selected for eval (blank otherwise)
+            e = [r for r in ev if r["index_type"] == it and r["build_params"] == bp
+                 and r["search_params"] == b["search_params"]]
             max_tab.append({"dataset": ds, "index": it,
                             "build": ",".join(f"{k}={v}" for k, v in json.loads(bp).items()),
                             "max_tune_recall": f"{_f(b, 'recall_at_10'):.4f}", "at": label(b).split(" ", 1)[1],
-                            "max_eval_recall": f"{max(_f(r, 'recall_at_10') for r in e):.4f}" if e else "",
+                            "eval_recall_same_config": f"{_f(e[0], 'recall_at_10'):.4f}" if e else "not on tune Pareto front",
                             "build_time_s": f"{_f(b, 'build_time_s'):.1f}",
                             "bytes_per_vector": f"{_f(b, 'bytes_per_vector'):.1f}"})
 
@@ -135,7 +137,7 @@ def main(argv=None) -> int:
     write_table(cost_tab, ["dataset", "index", "config", "build_time_s", "index_size_MB", "bytes_per_vector",
                            "eval_recall"], out / "tables" / "part2_build_cost_at_095",
                 "Build time, index size and bytes per vector of the recall-0.95 configuration")
-    write_table(max_tab, ["dataset", "index", "build", "max_tune_recall", "at", "max_eval_recall",
+    write_table(max_tab, ["dataset", "index", "build", "max_tune_recall", "at", "eval_recall_same_config",
                           "build_time_s", "bytes_per_vector"], out / "tables" / "part2_max_recall",
                 "Highest recall reached per index and build")
     print(f"tables: {out / 'tables'}")

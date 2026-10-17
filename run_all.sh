@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # One-command reproduction. Usage:  bash run_all.sh [--quick]
 #
-# STATUS: partial (Milestone 1). It currently only records the environment, validates the
-# datasets and runs the unit tests. Benchmark stages are added in later milestones.
+# Outputs go to ../results (or ../results/quick with --quick); see README.md.
+# STATUS: partial. Implemented stages: environment, tests, dataset validation, Part 1.
+# Stages run strictly one after another (no concurrent benchmarks; see decision A5).
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -24,5 +25,10 @@ echo "== unit tests ==";  "$PY" -m pytest -q
 echo "== dataset validation =="; "$PY" -m src.validate_data
 
 if [ "$QUICK" -eq 1 ]; then
-  echo "(--quick accepted; no benchmark stages exist yet)"
+  echo "== Part 1: exact baseline (quick: first 100,000 base vectors) =="
+  "$PY" -u -m experiments.part1_exact --quick --calibrate --n-single 200 --repeats 3 \
+        --secondary-repeats 2 --calibration-queries 100
+else
+  echo "== Part 1: exact baseline =="
+  "$PY" -u -m experiments.part1_exact --calibrate
 fi

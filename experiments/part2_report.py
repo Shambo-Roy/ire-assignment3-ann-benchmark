@@ -120,8 +120,8 @@ def main(argv=None) -> int:
         ax.set_yscale("log")
         ax.set_xlabel("recall@10 (eval queries)")
         ax.set_ylabel("queries per second (1 thread, log scale)")
-        ax.set_title(f"{ds}: recall@10 vs QPS
-(Pareto configs chosen on tune queries, measured on eval queries)", fontsize=10)
+        ax.set_title(f"{ds}: recall@10 vs QPS\n"
+                     "(Pareto configs chosen on tune queries, measured on eval queries)", fontsize=10)
         ax.grid(True, which="both", alpha=0.3)
         ax.legend(loc="lower left", fontsize=8)
         fig.tight_layout()

@@ -8,7 +8,9 @@ synthetic dimensionality experiment (Part 4).
 
 - **Milestone 1 (environment + data validation): COMPLETED.** Both datasets are downloaded and validated.
 - **Milestone 2 (Part 1 exact baseline): COMPLETED** on 2026-10-17. Results: `../results/results.csv` (13 rows, commit `e098ca9`).
-- **Next:** Milestone 3 (Part 2 ANN benchmarks), after review. See `IMPLEMENTATION_LOG.md` for the full record.
+- **Milestone 3 (Part 2 ANN benchmarks): COMPLETED** on 2026-10-17. 367 rows, 2 figures, 3 tables; plus a build-scaling check.
+- **Hypotheses for Parts 3 and 4:** written by the author and committed in `55016fe` (pushed) before any Part 3/4 run.
+- **Next:** Milestone 4 (Part 3 compression), after review. See `IMPLEMENTATION_LOG.md` for the full record.
 
 Part 1 headline numbers (eval queries, 1 thread pinned to a P-core, median of 5):
 
@@ -18,6 +20,16 @@ Part 1 headline numbers (eval queries, 1 thread pinned to a P-core, median of 5)
 | Exact, batch of 5,000 (BLAS path) | 325.97 QPS (8.57×) | 334.04 QPS (8.36×) |
 | Stored ground truth vs our exact search, recall@10 | 1.000 | 1.000 |
 | Queries with a tie at rank 10 (rel_tol 1e-6) | 137 | 2 |
+
+Part 2 headline numbers (configuration chosen on tune queries; eval recall / single-thread QPS):
+
+| Index | SIFT @0.95 | GloVe @0.95 | Max recall reached (SIFT / GloVe) |
+|---|---|---|---|
+| HNSW (M=32) | 0.971 / 6,783 QPS | 0.955 / 762.5 QPS | 0.996 / 0.984 |
+| IVF-Flat (nlist=16384) | 0.973 / 1,709 QPS | 0.956 / 412.1 QPS | 0.999 / 0.997 |
+| IVF-PQ | not reached | not reached | 0.884 (m=64) / 0.869 (m=50) |
+
+Figures: `../results/figures/part2_{sift,glove}_recall_vs_qps.png`. Tables: `../results/tables/part2_*.md`.
 
 ## Directory layout
 
@@ -43,10 +55,15 @@ Assignment 3/                    # submission root
     │   ├── threads.py           # CPU topology, build/search thread phases (OpenMP + OpenBLAS + affinity)
     │   ├── timing.py            # single/batch timing (warm-up, median of repeats), benchmark lock
     │   ├── provenance.py        # git provenance, hypothesis guard for Parts 3/4
-    │   └── results_io.py        # results.csv schema and writer
+    │   ├── results_io.py        # results.csv schema and writer
+    │   ├── indexes.py           # FAISS HNSW / IVF-Flat / IVF-PQ builders, shared seeded k-means
+    │   └── pareto.py            # Pareto front and target-recall selection
     ├── tests/                   # pytest unit tests (synthetic HDF5 fixtures, no real data needed)
     ├── experiments/
     │   ├── part1_exact.py       # Part 1 driver
+    │   ├── part2_ann.py         # Part 2 driver (tune -> select -> eval)
+    │   ├── part2_report.py      # Part 2 figures and tables from results.csv
+    │   ├── build_scaling.py     # build time with P-core threads vs 1 thread
     │   └── probes/              # diagnostics behind design decisions (Windows)
     ├── hypothesis.md            # Part 3 / Part 4 hypotheses (author-written, committed first)
     ├── IMPLEMENTATION_LOG.md    # technical journal
@@ -90,7 +107,11 @@ To keep the data somewhere else, set `ANN_DATA_DIR` to that folder. Do not renam
 | `.venv/Scripts/python -m experiments.part1_exact --calibrate` | Part 1 on both datasets (about 12 min); rows -> `../results/results.csv` |
 | `.venv/Scripts/python -m experiments.part1_exact --quick --calibrate` | Part 1 on the first 100K vectors; outputs -> `../results/quick/` |
 | `.venv/Scripts/python -m experiments.probes.pinning_probe` | diagnostic: QPS pinned to each CPU (about 4 min) |
-| `bash run_all.sh` / `bash run_all.sh --quick` | environment, tests, validation, Part 1 (quick Part 1 takes about 33 s) |
+| `.venv/Scripts/python -m experiments.part2_ann` | Part 2, full grid on both datasets (about 82 min); `--dataset`/`--index` select parts |
+| `.venv/Scripts/python -m experiments.part2_ann --quick` | Part 2 quick grid on the first 100K vectors (about 45 s) |
+| `.venv/Scripts/python -m experiments.part2_report [--quick]` | regenerate Part 2 figures and tables from results.csv |
+| `.venv/Scripts/python -m experiments.build_scaling [--quick]` | build-time scaling check (about 9 min) |
+| `bash run_all.sh` / `bash run_all.sh --quick` | environment, tests, validation, Part 1, Part 2 (quick: about 2 min in total) |
 
 Benchmarks hold a lock file `../results/.benchmark.lock`, so two cannot run at once. Do not edit tracked files while a
 benchmark is running: rows record the git state, and a dirty tree makes them non-reportable.
@@ -114,24 +135,24 @@ Legend: [x] done and validated, [~] partially done, [ ] not started, [!] blocked
 - [x] single-query vs batch timing + explanation (8.6× / 8.4×; mechanism in IMPLEMENTATION_LOG.md, M2)
 
 **Part 2: ANN benchmarks**
-- [ ] HNSW / IVF-Flat / IVF-PQ (all FAISS) build-parameter grids + search sweeps, both datasets
-- [~] single-thread, one-query-at-a-time QPS, median of repeats, P-core pinning (harness done and validated in M2; ANN use in M3)
-- [~] multi-threaded builds on the verified P-core logical CPUs, with OpenMP **and** OpenBLAS thread counts set and verified, and build timing separate from query timing (design approved; controls verified)
+- [x] HNSW / IVF-Flat / IVF-PQ (all FAISS) build-parameter grids + search sweeps, both datasets (12 builds per dataset)
+- [x] single-thread, one-query-at-a-time QPS, median of repeats, P-core pinning
+- [x] multi-threaded builds on the verified P-core logical CPUs, with OpenMP **and** OpenBLAS thread counts set and verified, and build timing separate from query timing (design approved; controls verified)
 - [x] no concurrent benchmarks (lock file, sequential stages)
-- [ ] recall-vs-QPS plots, QPS@0.90/0.95 table, build time / size / bytes-per-vector table
-- [ ] explanation of any recall ceiling
+- [x] recall-vs-QPS plots, QPS@0.90/0.95 table, build time / size / bytes-per-vector table
+- [x] explanation of any recall ceiling (IVF-PQ plateau set by code size m; details in IMPLEMENTATION_LOG.md, M3)
 
 **Part 3: compression (SIFT)**
-- [ ] hypothesis committed first (enforced by the guard), [ ] PQ sub-vector sweep, [ ] IVF-PQ vs IVF-PQ + rerank top-100
+- [x] hypothesis committed first (`55016fe`, guard accepts it), [ ] PQ sub-vector sweep, [ ] IVF-PQ vs IVF-PQ + rerank top-100
 
 **Part 4: dimensionality (synthetic)**
-- [ ] hypothesis committed first (enforced by the guard), [ ] seeded generator, [ ] d = 32/64/128(control)/256/512, exact + HNSW + IVF-Flat, [ ] main figure
+- [x] hypothesis committed first (`55016fe`), [ ] seeded generator, [ ] d = 32/64/128(control)/256/512, exact + HNSW + IVF-Flat, [ ] main figure
 
 **Part 5: report and submission**
 - [~] environment and version record (`results/metadata/environment.json`)
 - [~] README / requirements.txt / hypothesis.md (exist, will grow)
-- [~] top-level results/results.csv (Part 1 rows), results/figures/ (none yet)
-- [~] run_all.sh (+ --quick under 15 min): stages up to Part 1
+- [~] top-level results/results.csv (Parts 1-2: 386 rows), results/figures/ (Part 2: 2 figures), results/tables/
+- [~] run_all.sh (+ --quick under 15 min): stages up to Part 2
 - [~] top-level ai_log/ (Milestone 1 prompt and response; the author still has to copy in the transcript)
 - [ ] report.pdf (max 5 pages, answers Q1-Q5)
 
@@ -165,6 +186,6 @@ Diagnostic probes for the thread controls are in `experiments/probes/` (Windows 
 
 ## Next milestone
 
-Milestone 3 covers Part 2 ANN benchmarks: FAISS HNSW, IVF-Flat and IVF-PQ on both datasets, with build grids,
-search-parameter sweeps tuned on the tune split and reported on the eval split, single-thread pinned QPS, recall-vs-QPS
-plots, and QPS@0.90/0.95 and build/size tables.
+Milestone 4 covers Part 3, compression on SIFT. It varies the number of PQ sub-vectors and compares plain IVF-PQ with IVF-PQ plus exact
+re-ranking of the top 100 candidates, in recall, speed and memory. Runs are guarded by the committed hypothesis (`55016fe`), tuned on the
+first 5,000 queries and evaluated on the last 5,000.

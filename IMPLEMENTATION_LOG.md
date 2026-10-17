@@ -23,24 +23,24 @@ Due: 25 Oct 2026, 23:59 IST. Submission: `<rollnumber>_A3.zip` with four top-lev
 | P1.4 | Time exact search one query at a time vs batched, and explain the difference | COMPLETED (M2): 8.57× SIFT, 8.36× GloVe (1 thread, BLAS path); mechanism in the M2 entry | `results/results.csv` (`p1_exact`) |
 | P1.5 | Measure and report the number of tied queries at the rank-10 boundary, not hardcoded | COMPLETED (M2): SIFT 137, GloVe 2 at 1e-6, with sensitivity table | `part1_*_reference.json` → `boundary_ties` |
 | T1 | Timing method: single thread, repeated, median, P-core pinning with verified mapping (decision A1) | COMPLETED (M2); pinning validated by calibration + diagnostic | `src/threads.py`, `src/timing.py`, `pinning_probe.json` |
-| T2 | Build: multi-threaded on the verified P-core logical processors. OpenMP and OpenBLAS both set and verified. Build timing kept separate from query timing. Build thread configuration recorded (A5) | IN PROGRESS: `build_phase()` implemented, tested and used for Flat; ANN builds in M3 | `src/threads.py` |
+| T2 | Build: multi-threaded on the verified P-core logical processors. OpenMP and OpenBLAS both set and verified. Build timing kept separate from query timing. Build thread configuration recorded (A5) | COMPLETED (M3): all ANN builds under `build_phase()`; scaling check SIFT HNSW 5.45×, IVF-Flat 1.76×, IVF-PQ 1.75× | `p2_build_scaling` rows |
 | T3 | No concurrent benchmarks (lock file, sequential `run_all.sh`) (A5) | COMPLETED (M2) | `benchmark_lock`, 2 tests |
-| G1 | Hypothesis guard: refuse Part 3/4 if the hypothesis is missing, empty, template-only or uncommitted (A6) | IMPLEMENTED + TESTED (M2, 9 tests); used from M4 | `src/provenance.py` |
+| G1 | Hypothesis guard: refuse Part 3/4 if the hypothesis is missing, empty, template-only or uncommitted (A6) | IMPLEMENTED + TESTED (10 tests incl. numbered headings); accepts committed `55016fe`; used from M4 | `src/provenance.py` |
 | G2 | Provenance columns in every result row: commit, UTC time, experiment id, configuration, seed, input id, metrics (A6) | COMPLETED (M2 schema, used by Part 1) | `src/results_io.py` |
 | G3 | After each run: journal summary with output hashes, then commit (A6) | IN USE (M2 entry has hashes) | section 5, M2 |
-| P2.1 | HNSW, IVF-Flat, IVF-PQ on both datasets: several build settings, search-parameter sweep up to recall ≥ 0.95 | PLANNED (M3) | |
-| P2.2 | QPS measured one query at a time, single thread, median of repeats | HARNESS COMPLETED (M2); used for ANN in M3 | `src/timing.py` |
-| P2.3 | Recall-vs-QPS plot per dataset (Pareto front per index + exact) | PLANNED | |
-| P2.4 | Table: QPS at recall 0.90 / 0.95 | PLANNED | |
-| P2.5 | Table: build time, index size, bytes/vector at recall 0.95 | PLANNED | |
-| P2.6 | Explain any recall ceiling | PLANNED | |
-| P3 | Compression on SIFT: vary PQ m; IVF-PQ vs IVF-PQ + exact rerank of top 100; recall, speed, memory; hypothesis committed first | PLANNED | |
+| P2.1 | HNSW, IVF-Flat, IVF-PQ on both datasets: several build settings, search-parameter sweep up to recall ≥ 0.95 | COMPLETED (M3): 3 + 3 + 6 builds per dataset, 252 tune rows | `experiments/part2_ann.py`, `p2_ann` rows |
+| P2.2 | QPS measured one query at a time, single thread, median of repeats | COMPLETED (M3): every row single-query, 1 thread, pinned, median (eval R = 5) | `src/timing.py` |
+| P2.3 | Recall-vs-QPS plot per dataset (Pareto front per index + exact) | COMPLETED (M3) | `results/figures/part2_{sift,glove}_recall_vs_qps.png` |
+| P2.4 | Table: QPS at recall 0.90 / 0.95 | COMPLETED (M3) | `results/tables/part2_qps_at_recall.md` |
+| P2.5 | Table: build time, index size, bytes/vector at recall 0.95 | COMPLETED (M3) | `results/tables/part2_build_cost_at_095.md` |
+| P2.6 | Explain any recall ceiling | COMPLETED (M3): IVF-PQ plateau set by m (quantization error); GloVe HNSW/IVF limits are sweep-limited | M3 entry, `part2_max_recall.md` |
+| P3 | Compression on SIFT: vary PQ m; IVF-PQ vs IVF-PQ + exact rerank of top 100; recall, speed, memory; hypothesis committed first | PLANNED (M4); hypothesis committed `55016fe` and pushed | |
 | P4 | Own synthetic data: dimensionality d ∈ {32, 64, 128 (control), 256, 512}, ≤ 500K vectors, seeded, ≥ 2 indexes, hypothesis committed first, 1 figure, ≤ 1 page | PLANNED | |
 | P5.1 | Report ≤ 5 pages that answers Q1–Q5 with mechanisms | PLANNED | |
 | P5.2 | Machine specs + library versions | IN PROGRESS | `results/metadata/environment.json` |
-| P5.3 | `README.md`, `requirements.txt`, `hypothesis.md` | IN PROGRESS | files exist |
-| P5.4 | `bash run_all.sh` (full) and `--quick` (under 15 min on a laptop), run from `code/` and writing to the top-level `results/` | IN PROGRESS: stages up to Part 1. Quick Part 1 took 33 s | `run_all.sh` |
-| P5.5 | `results/results.csv` (one row per run behind any reported number), `results/figures/`, at the top level | IN PROGRESS: 13 Part 1 rows; no figures yet | `../results/results.csv` |
+| P5.3 | `README.md`, `requirements.txt`, `hypothesis.md` | IN PROGRESS: hypotheses written by the author and committed (`55016fe`) | files exist |
+| P5.4 | `bash run_all.sh` (full) and `--quick` (under 15 min on a laptop), run from `code/` and writing to the top-level `results/` | IN PROGRESS: stages up to Part 2. Quick Part 1 33 s + quick Part 2 45 s | `run_all.sh` |
+| P5.5 | `results/results.csv` (one row per run behind any reported number), `results/figures/`, at the top level | IN PROGRESS: 386 rows (Part 1 + Part 2), 2 figures, 3 tables | `../results/` |
 | P5.6 | `ai_log/` (top level) with all prompts and responses, plus `ai_statement.md` classifying every file | IN PROGRESS | `../ai_log/` |
 | P5.7 | No datasets or index files in the zip; no ann-benchmarks framework; no copied numbers | ENFORCED | `.gitignore`, data dir outside repo |
 | P5.8 | Own recall, timing and plotting code; FAISS for all indexes (decision A3) | POLICY | |
@@ -507,6 +507,187 @@ different runs should not be interpreted (relevant to Q5).
 
 **Remaining / next:** Milestone 3 (Part 2 ANN benchmarks), after the author's review.
 
+### Milestone 3: Part 2 ANN benchmarks (2026-10-17)
+
+**Status:** COMPLETED. All Part 2 requirements have code, tests and measured results. **Awaiting the author's review before Milestone 4.**
+
+**Commits:**
+- `55016fe` hypotheses (author) → `e341426` M3 code → `78e0e5f` fix for a syntax error in the report script + compile test
+  (= `git_commit` of all 367 `p2_ann` rows) → `77f89d2` table-column fix → `398f56f` build-scaling script (= `git_commit` of the 6 `p2_build_scaling` rows)
+  → this journal update.
+- The report script has no provenance rows; the figures and tables were regenerated after that commit and are hashed below.
+
+**Files created:** `src/indexes.py`, `src/pareto.py`, `experiments/part2_ann.py`, `experiments/part2_report.py`,
+`experiments/build_scaling.py`, `tests/test_part2.py`, `tests/test_scripts_compile.py`, `../ai_log/milestone3/{prompts,response}.md`.
+**Modified:** `src/results_io.py` (configurable replacement key), `src/provenance.py` + `tests/test_provenance.py` (numbered-heading
+fix, commit `468fb36`), `run_all.sh` (Part 2 stages), `requirements.txt` (+ matplotlib 3.11.2), `README.md`, `IMPLEMENTATION_LOG.md`, `../ai_log/ai_statement.md`.
+**Outputs (outside git):**
+- `results/results.csv` (now 386 rows)
+- `results/figures/part2_{sift,glove}_recall_vs_qps.png`
+- `results/tables/part2_{qps_at_recall,build_cost_at_095,max_recall}.{csv,md}`
+- `results/metadata/part2_{sift,glove}_builds.json` (build-time breakdown)
+- logs `part2_sift_HNSW.log`, `part2_sift_IVF.log`, `part2_glove.log`, `build_scaling.log`
+- quick-mode outputs in `results/quick/`
+
+**What was implemented**
+1. `src/indexes.py`: FAISS builders, all `METRIC_L2`.
+   - HNSW: `IndexHNSWFlat(d, M)` with efConstruction 200.
+   - IVF-Flat and IVF-PQ: built on a pre-trained `IndexFlatL2` coarse quantizer. IVF-PQ uses 8 bits per code and residual encoding (FAISS default).
+   - k-means is seeded (`cp.seed = 12345`) and computed **once per nlist per dataset**, then shared by IVF-Flat and IVF-PQ.
+     Every IVF build's reported time includes the full k-means time. A test checks that shared and standalone centroids give identical search results.
+   - Size = `len(faiss.serialize_index())`.
+2. `src/pareto.py`: Pareto front over (recall, QPS), and "fastest configuration whose recall ≥ target". A test checks that the target pick always lies on the front.
+3. `experiments/part2_ann.py`: the protocol below. `experiments/part2_report.py`: figures and tables built only from `results.csv`.
+4. `experiments/build_scaling.py`: the A5 check comparing P-core-threaded and single-threaded builds.
+
+**Protocol actually used (tune → select → eval)**
+
+| Step | Queries | What is measured | Setting |
+|---|---|---|---|
+| Tune sweep | tune 0–4999 | recall@10 on all 5,000 (batch search, untimed); QPS = single-query, 1 thread, pinned cpu 10, on tune[0:1000], R = 3 + warm-up | every build × search value |
+| Select | (tune rows only) | Pareto front per index type; for 0.90 and 0.95, the fastest configuration with tune recall ≥ target | |
+| Eval | eval 5000–9999 | recall@10 on all 5,000; QPS on eval[0:1000], R = 5 + warm-up | only the selected configurations |
+
+Sweep lists: efSearch {10, 16, 24, 32, 48, 64, 96, 128, 192, 256, 384, 512, 768, 1024}; nprobe {1, 2, 4, …, 1024} (never more than nlist).
+
+Early stopping:
+- tune recall ≥ 0.995;
+- tune QPS below exact-search QPS (from Part 1);
+- recall plateau (two consecutive steps each gaining less than 0.002).
+
+Build grid:
+
+| Index | SIFT | GloVe |
+|---|---|---|
+| HNSW | M ∈ {8, 16, 32}, efC 200 | same |
+| IVF-Flat | nlist ∈ {1024, 4096, 16384} | same |
+| IVF-PQ | nlist ∈ {1024, 4096} × m ∈ {16, 32, 64} | nlist ∈ {1024, 4096} × m ∈ {10, 25, 50} (m must divide d = 100) |
+
+Validation inside every measurement:
+- the single-query ids on the timed subset are compared with the batch ids;
+- **all 367 rows match**, so recall from batch search is exactly the recall of the timed single-query search;
+- all 367 rows pass `thread_check` (cpu/wall 0.71–1.14);
+- all rows are `reportable=True` from commit `78e0e5f`.
+
+**Commands executed**
+```
+pip install matplotlib (first attempt stalled on the network for over 5 min; stopped and retried with --timeout 30)
+.venv/Scripts/python -m pytest -q                                  # 68 -> 89 -> 90 passed
+.venv/Scripts/python -m experiments.part2_ann --quick ... ; part2_report --quick   # 45 s end to end
+git commit e341426; git commit 78e0e5f (syntax fix)
+.venv/Scripts/python -m experiments.part2_ann --dataset sift --index HNSW          # pilot, 4.7 min
+.venv/Scripts/python -m experiments.part2_ann --dataset sift --index IVF-Flat --index IVF-PQ   # 24.0 min
+.venv/Scripts/python -m experiments.part2_ann --dataset glove                      # 52.9 min
+.venv/Scripts/python -m experiments.part2_report
+.venv/Scripts/python -m experiments.build_scaling --quick ; git commit 398f56f ; build_scaling (full, about 9 min)
+sha256sum results/...
+```
+The author approved the 60–90 minute full run after the pilot (AskUserQuestion: "Run everything now"). Total measured run time ≈ 82 min.
+
+**Measured results (eval queries; configuration chosen on tune queries)**
+
+*QPS at recall 0.90 / 0.95 (`results/tables/part2_qps_at_recall.md`):*
+
+| Dataset | Index | @0.90: config → eval recall, QPS | @0.95: config → eval recall, QPS |
+|---|---|---|---|
+| SIFT | HNSW | M=32, ef=24 → 0.9155, **11,626** | M=32, ef=48 → 0.9711, **6,783** |
+| SIFT | IVF-Flat | nlist=4096, nprobe=32 → 0.9333, 3,055 | nlist=16384, nprobe=128 → 0.9733, 1,709 |
+| SIFT | IVF-PQ | not reached (max tune recall 0.884) | not reached |
+| GloVe | HNSW | M=32, ef=192 → 0.9179, **1,523** | M=32, ef=384 → 0.9546, **762.5** |
+| GloVe | IVF-Flat | nlist=16384, nprobe=512 → 0.9241, 752.4 | nlist=16384, nprobe=1024 → 0.9555, 412.1 |
+| GloVe | IVF-PQ | not reached (max tune recall 0.869) | not reached |
+| SIFT / GloVe | Exact (Part 1) | 38.05 / 39.98 QPS at recall 1.0 | |
+
+Every selected configuration also meets its target on eval.
+
+*Build cost of the recall-0.95 configuration (`part2_build_cost_at_095.md`):*
+
+| Dataset | Index | Build time (12 P-core threads) | Index size | Bytes/vector |
+|---|---|---|---|---|
+| SIFT | HNSW M=32 | 82.6 s | 784.1 MB | 784.1 |
+| SIFT | IVF-Flat nlist=16384 | 321.8 s (k-means 291.9 s) | 528.5 MB | 528.5 |
+| GloVe | HNSW M=32 | 135.2 s | 795.5 MB | 672.1 |
+| GloVe | IVF-Flat nlist=16384 | 367.6 s (k-means 334.0 s) | 489.6 MB | 413.6 |
+| both | IVF-PQ | 0.95 not reached: 18–74 B/vector, builds 17–137 s | | |
+
+Reference: the raw vectors are 512 B (SIFT) and 400 B (GloVe). Flat = 512.0 / 400.0 B/vector.
+
+*Highest recall reached (`part2_max_recall.md`), and why:*
+
+| Index | SIFT | GloVe | Why it stopped |
+|---|---|---|---|
+| HNSW | 0.995–0.996 for all M | M=8: 0.866, M=16: 0.951, M=32: 0.984 | SIFT: stop rule (≥ 0.995). GloVe: **end of the efSearch list (1024)**, still rising slowly, so these are sweep limits, not proven ceilings |
+| IVF-Flat | 0.996–0.999 | nlist 1024: 0.997, 4096: 0.987, 16384: 0.956 | GloVe nlist 4096/16384: **end of the nprobe list (1024)** = 25% / 6% of lists, so also sweep limits |
+| IVF-PQ | m=16: 0.56–0.59, m=32: 0.73–0.74, m=64: 0.88 | m=10: 0.31–0.32, m=25: 0.62–0.63, m=50: 0.87 | **genuine plateau**: all 6 SIFT sweeps and 2 GloVe sweeps stopped on the plateau rule; GloVe m=50 at nprobe 256/512/1024 gives 0.860/0.868/0.869 |
+
+*Why IVF-PQ cannot reach high recall (mechanism; supported by the data, with one inference marked):*
+- IVF-PQ ranks candidates by **approximate** distances computed from 8-bit codes for each sub-vector.
+- Raising nprobe only adds candidates to the pool. It cannot fix the ordering error of the PQ distances, so recall stops rising once the
+  true neighbours are already in the scanned lists (the plateau above).
+- The plateau level depends almost only on m, not on nlist. SIFT: nlist 1024 vs 4096 differ by ≤ 0.02, while m = 16 → 32 → 64 raises it 0.56 → 0.73 → 0.88.
+  More sub-vectors means finer quantization of each part of the vector, so the distance errors are smaller.
+- *Inference, to be tested in Part 3:* the true neighbours are in the candidate pool but mis-ranked. Part 3's re-ranking of the top 100
+  candidates tests this directly (hypothesis 3.2, committed in `55016fe`).
+
+*Answer to Q1 (preliminary, for the report):*
+- **HNSW is fastest at recall 0.95 on both datasets.** It beats IVF-Flat by **3.97×** on SIFT (6,783 vs 1,709 QPS) and by **1.85×** on GloVe (762.5 vs 412.1).
+- The ranking does not change between datasets, but the **margin and absolute speed do**. At recall 0.95, HNSW is 8.9× slower on GloVe
+  (6,783 → 762.5 QPS) and IVF-Flat 4.1× slower (1,709 → 412.1), which is why the HNSW lead shrinks from 3.97× to 1.85×. GloVe needed ef = 384 against 48 on SIFT, and nprobe = 1024 against 128.
+- Speed-up over exact search at 0.95: SIFT HNSW 178×, GloVe HNSW 19×.
+- *Explanation not yet established:* why GloVe is harder (for example, lower relative contrast between neighbours and other points).
+  Not measured here. Part 4 (dimensionality) and an optional relative-contrast measurement could support it.
+
+*Build scaling (A5; SIFT; `p2_build_scaling`, commit `398f56f`):*
+
+| Configuration | 12 P-core threads | 1 thread (pinned) | Speed-up | Breakdown |
+|---|---|---|---|---|
+| HNSW M=16 | 69.8 s | 380.3 s | **5.45×** | graph insertion parallelises well (≈ 6 physical cores) |
+| IVF-Flat nlist=1024 | 7.9 s | 13.9 s | 1.76× | k-means 5.8 vs 9.9 s, add 2.1 vs 4.0 s |
+| IVF-PQ m=16, nlist=1024 | 21.8 s | 38.2 s | 1.75× | **PQ training 12.1 vs 11.7 s (no speed-up)**, encode 4.0 vs 16.5 s (4.1×) |
+
+What this means:
+- The reported build times favour HNSW relative to a single-threaded comparison. At 1 thread, the HNSW M=16 build would cost about 380 s.
+- The ranking of IVF build costs barely depends on threads.
+- The 12-thread times repeat the Part 2 build times closely (IVF-PQ 21.8 = 21.8 s, IVF-Flat 7.9 vs 6.8 s, HNSW 69.8 vs 70.1 s).
+
+*Tune vs eval consistency (configurations measured on both splits):*
+- **Recall:** on SIFT, eval recall was higher than tune recall for **all 47 selected configurations** (mean +0.0156, range +0.0003 to +0.0483).
+  On GloVe there is no systematic difference (mean +0.0024, range −0.0051 to +0.0073). So the last 5,000 SIFT queries are measurably easier
+  than the first 5,000. The reason is not known. Effect: tune-based selection is slightly **conservative** on SIFT. For example, HNSW M=16, ef=48
+  scored tune 0.9454 (so it was not chosen for 0.95) but eval 0.9533.
+- **QPS:** median eval/tune ratio 0.998, range 0.66–1.18. Individual configurations can differ by up to about 34% between the two measurements
+  (different queries, R = 3 vs 5, run-to-run variation). Reported QPS comes only from the eval rows.
+- The plotted curves are eval measurements of the **tune**-selected front, so they have small non-monotonic steps (GloVe HNSW near 0.81,
+  SIFT IVF-Flat near 0.93). This is expected and is not corrected, to keep the tune/eval separation.
+
+**Provenance (A6), SHA-256 of outputs at this commit:**
+```
+5d92e372ae7871c426e7f686c9505444f8464caaedb0e3855e0e7aa49830482d  results/results.csv
+fbdfce62e1b4b7c30fd5d92768653d30f91ed61a998380f3ddbc231ac0dadbe7  results/figures/part2_sift_recall_vs_qps.png
+b1ef8bcb0da92d827caf42cb8bc65f1f322532e2113a0ab898d7fc0c84a76eca  results/figures/part2_glove_recall_vs_qps.png
+d6a0bf5ce07eea90c1ae0c885bd859c91f900877c9f39f4ccd6d0353bad9da05  results/tables/part2_qps_at_recall.csv
+6be7e751a85e11ed8bbcf5ead5b6e6fe26128876a1c0ae10f5bc3effcab306ef  results/tables/part2_build_cost_at_095.csv
+ea68705ae9cf9aa8723fc7f88db5b7ed5d446c42d0b0d939f730323f208968a8  results/tables/part2_max_recall.csv
+8ea7fd8f9df0278b3a2fd0eb8df84b1bf38f07d6c8ed02b1e72d0f68b4e83c91  results/metadata/part2_sift_builds.json
+85f4b62e190978cc562e5fce184d28c2ce4555972f0e2aaa1758411f60addf4e  results/metadata/part2_glove_builds.json
+```
+
+**What M3 establishes:**
+- On this machine, under this protocol, HNSW gives the highest single-thread QPS at recall 0.90 and 0.95 on both datasets.
+- IVF-Flat reaches high recall but needs far larger nprobe on GloVe.
+- Plain IVF-PQ cannot reach 0.90 at any tested code size (up to 64 B on SIFT, 50 B on GloVe), and its ceiling is set by m.
+- PQ shrinks the index 6.9–22.5× compared with IVF-Flat on the same dataset (18.4–74.3 vs 408–529 B/vector).
+- Build cost: HNSW 47–135 s (graph links add 80.6 B/vector at M=8 up to 272 B/vector at M=32); IVF dominated by k-means, which grows steeply with nlist (SIFT: 5 s → 74 s → 292 s).
+
+**What it does not establish:**
+- True recall ceilings for GloVe HNSW M ≤ 16 and IVF-Flat nlist ≥ 4096 (sweep-limited).
+- Effects of efConstruction (fixed at 200), of nbits ≠ 8, or of OPQ.
+- Multi-threaded or batched QPS.
+- Why the SIFT query halves differ in difficulty.
+- Why GloVe is harder.
+
+**Remaining / next:** Milestone 4 (Part 3 compression experiment, guarded by hypothesis commit `55016fe`), after the author's review.
+
 ---
 
 ## 6. Algorithms, formulas and implementation decisions
@@ -689,8 +870,8 @@ The journal commits in this workflow are made by Claude Code as part of the appr
 
 | Experiment | Hypothesis commit | Results commit | Status |
 |---|---|---|---|
-| Part 3: compression | not yet | not yet | template in `hypothesis.md`; the **author must write** it |
-| Part 4: dimensionality | not yet | not yet | template in `hypothesis.md`; the **author must write** it |
+| Part 3: compression | **`55016fe`** (2026-10-17 14:43 IST, pushed to GitHub the same minute) | not yet | written by the author; the guard accepts it (section SHA-256 `f6912f61…`) |
+| Part 4: dimensionality | **`55016fe`** (same commit) | not yet | written by the author; the guard accepts it (section SHA-256 `0751800a…`) |
 
 Mechanism: decision **A6** (section 6). For each experiment, this table will hold the hypothesis commit `H`, the pre-run HEAD recorded in
 the rows, the journal commit `J`, and whether `H` was pushed to GitHub before the run (with the push time shown on GitHub).
@@ -703,6 +884,14 @@ the rows, the journal commit `J`, and whether `H` was pushed to GitHub before th
 | `N_TUNE_QUERIES` | 5000 | assignment |
 | `K` | 10 | recall@10 |
 | `chunk_rows` | 100,000 | keeps streaming validation under ~60 MB for these dimensionalities |
+| HNSW efConstruction | 200 (fixed) | common default; varying it was out of scope |
+| HNSW M | {8, 16, 32} | low / medium / high graph degree |
+| IVF nlist | {1024, 4096, 16384} (IVF-PQ: {1024, 4096}) | about √n to 16√n for n ≈ 1M |
+| IVF-PQ m, nbits | SIFT {16, 32, 64}, GloVe {10, 25, 50}; nbits 8 | m must divide d; 8 bits = 256 centroids per sub-vector (FAISS default) |
+| k-means seed | 12345 (`cp.seed`) | reproducible centroids, shared per nlist |
+| Part 2 tune timing | tune[0:1000], R = 3 + warm-up | cost; used only for selection |
+| Part 2 eval timing | eval[0:1000], R = 5 + warm-up | A1; reported numbers |
+| Sweep stop rules | recall ≥ 0.995; QPS < exact QPS; plateau (2 × gain < 0.002); nprobe ≤ nlist | saves time; logged |
 | `N_SPOT_CHECK` | 10 queries | cheap ground-truth sanity check. The full check is Part 1 |
 | `ANN_DATA_DIR` | default `../data` | portability |
 | `ANN_RESULTS_DIR` | default `../results` | submission layout (A4) |
@@ -750,6 +939,17 @@ Design revision, **measured** 2026-10-16: `19 passed`.
 
 Milestone 2, **measured** 2026-10-17: **`55 passed in 6.00s`** (36 new tests; one test added during M2 after bug 1).
 
+Milestone 3, **measured** 2026-10-17: **`90 passed`**.
+- +1 guard test for numbered headings (`468fb36`).
+- +12 in `test_part2.py`: Pareto front removes dominated points; equal recall keeps the faster point; target selection is the fastest meeting the target, or none;
+  the target pick always lies on the front (200 random points); all 3 builders produce working indexes whose search parameter raises recall
+  (IVF-Flat and HNSW > 0.95 at high settings); shared k-means gives results identical to standalone training and charges its time; PQ m must divide d;
+  IVF-PQ is smaller than IVF-Flat; BuildSpec name round-trip; custom results key keeps other index types.
+- +21 compile tests (`test_scripts_compile.py`), one per `src/` and `experiments/` file. Added after bug M3-2.
+- +1 from the new `experiments/build_scaling.py` file being picked up by the compile test.
+
+Real-data validation in M3: single-query ids equal batch ids on every timed subset (367/367 rows); thread_check PASS on 367/367.
+
 | Test file | Tests | What they verify |
 |---|---|---|
 | `test_recall.py` | 16 | perfect = 1; disjoint = 0; order-invariant; tied non-reference id counts; inside vs outside the tolerance; hand-computed 0.7; duplicates once; −1 padding and short lists keep denominator 10; −1 never counts; τ = 0; equals naive id-intersection without ties; per-row independence; shape errors; float64 distances with padding; deterministic tie order of the reference; tie statistics including tolerance sensitivity |
@@ -764,6 +964,18 @@ Real-data validation, **measured** 2026-10-16: SIFT PASSED, GloVe PASSED (all ch
 ## 11. Bugs encountered
 
 None in Milestone 1.
+
+**Milestone 3**
+1. *Duplicate keyword (`search_mode`) in `part2_ann.py`.* `TimingResult.as_row()` already sets it. Caught by the first quick run (TypeError) and fixed before any reportable run.
+2. *Syntax error committed (`e341426`).* A `sed` replacement inserted a literal newline into an f-string in `part2_report.py`. The tests did not
+   import that script, so they passed.
+   - **Fix:** `78e0e5f`, plus `tests/test_scripts_compile.py`, which compiles every source file.
+   - Found before any reportable run because I checked the grep output.
+3. *Misleading table column.* `max_eval_recall` in `part2_max_recall` was the highest eval recall among the *evaluated* configurations of a build, not the
+   eval recall of the build's best configuration. For example, GloVe HNSW M=8 showed 0.38 next to a tune maximum of 0.866.
+   - **Fix:** `77f89d2`, which reports `eval_recall_same_config` (or "not on tune Pareto front").
+   - Measured rows were unaffected; only the derived table changed.
+4. *Not a code bug:* the first `pip install matplotlib` stalled on the network for over 5 minutes (about 0 CPU). It was stopped (only that process) and retried with `--timeout 30`.
 
 **Milestone 2**
 1. *Test encoding bug.* Three provenance tests failed because `Path.write_text` without `encoding=` uses the Windows code page.
@@ -784,9 +996,19 @@ None in Milestone 1.
 
 Part 1 (M2): see the Milestone 2 entry in section 5. Source: `results/results.csv` rows `p1_exact` (10) and `p1_calibration` (3), commit `e098ca9`.
 
+Part 2 (M3): see the Milestone 3 entry. Source: `p2_ann` (367 rows: 252 tune + 115 eval, commit `78e0e5f`) and `p2_build_scaling` (6 rows, `398f56f`).
+
 ## 13. Figures and tables
 
-No figures yet (Part 1 needs none). Part 1 tables (ground-truth agreement, ties, timing, CPU placement) are in the M2 entry and are derived only from `results.csv` and `results/metadata/part1_*_reference.json`.
+Part 1 needs no figure. Its tables are in the M2 entry, derived from `results.csv` and `results/metadata/part1_*_reference.json`.
+
+| Output | What it shows | Generated by |
+|---|---|---|
+| `results/figures/part2_sift_recall_vs_qps.png` | SIFT: eval recall@10 vs single-thread QPS (log scale) of each index's tune-selected Pareto configurations, plus the exact baseline star, with 0.90/0.95 guides | `experiments/part2_report.py` |
+| `results/figures/part2_glove_recall_vs_qps.png` | same for GloVe | same |
+| `results/tables/part2_qps_at_recall.{md,csv}` | QPS at recall 0.90/0.95: config chosen on tune, recall and QPS on eval, whether eval meets the target | same |
+| `results/tables/part2_build_cost_at_095.{md,csv}` | build time, size, bytes/vector of the 0.95 configuration | same |
+| `results/tables/part2_max_recall.{md,csv}` | best tune recall per build, the setting where it occurs, eval recall of that setting | same |
 
 ## 14. Limitations, assumptions, unresolved issues
 
@@ -795,6 +1017,11 @@ No figures yet (Part 1 needs none). Part 1 tables (ground-truth agreement, ties,
 - **Run-to-run variation of about 5%** (SIFT single 36.3 → 38.1 QPS between runs 1 and 2) exceeds within-run spread (1–3%). Do not interpret differences under about 5% between separately run configurations.
 - GloVe tie count depends on the tolerance (0–195 queries for 0–1e-4). At 1e-6 only 2 queries are affected.
 - Single-query timings use 500 of the 5,000 eval queries (cost). BLAS-path rows use all 5,000.
+- Part 2: QPS is timed on 1,000 of 5,000 queries per split; recall uses all 5,000. Tune QPS used R = 3.
+- Part 2 sweeps for GloVe HNSW M ≤ 16 and IVF-Flat nlist ≥ 4096 ended at the end of the sweep list (1024), so those maxima are lower bounds, not ceilings.
+- The SIFT tune half is harder than the eval half (eval recall higher on all 47 selected configurations, mean +0.016). Tune selection is slightly conservative on SIFT.
+- Fixed efConstruction (200) and nbits (8); no OPQ. Different values could change the rankings at the margins (not tested).
+- Build times are with 12 P-core threads. At 1 thread HNSW is about 5.5× slower and the IVF types about 1.75× slower (scaling check), so build-time comparisons depend on the thread policy.
 - The memory-bandwidth explanation of single-query speed is inferred (about 19 GB/s implied), not measured with a bandwidth benchmark. The reason 12-thread BLAS scales only 2× is not determined.
 - `results/` and `ai_log/` are not version-controlled (A4). Their history is not recoverable from git, so the hypothesis-ordering evidence relies on the mechanism in section 7.
 - FAISS-specific behaviours listed in A3 (HNSW build non-determinism, k-means subsampling, efSearch ≥ k).
@@ -820,17 +1047,19 @@ No figures yet (Part 1 needs none). Part 1 tables (ground-truth agreement, ties,
 8. ~~Hypothesis-ordering mechanism~~. Approved and specified as A6.
 9. ~~Review revision B~~. Done (`d526e1e`).
 10. ~~Secondary 12-thread batch row~~. Included as labelled secondary rows (no explicit answer was received; the recommendation was applied). Easy to drop if you prefer.
-12. **Review Milestone 2** (this entry), in particular: (a) the added BLAS-path vs default-path batch rows; (b) 500-query single-query timing; (c) the GloVe tolerance sensitivity. Then approve Milestone 3.
-13. **Copy the session transcript** into `ai_log/transcripts/` when this session ends (it now also covers M2).
+12. ~~Review Milestone 2~~. Approved ("approved. start milestone 3").
+13. **Copy the session transcripts** into `ai_log/transcripts/`: session `9d5f9e15-…` (M1–M2) and session `815a2c47-…` (hypothesis commit + M3) when it ends.
+14. **Review Milestone 3**, in particular: (a) the tune → select → eval protocol and its sweep stop rules; (b) the sweep-limited GloVe maxima; (c) the 1,000-query QPS subsets. Then approve Milestone 4 (Part 3).
+15. **Optional decision for M4:** Part 3 needs IVF-PQ variants. Proposal: nlist = 4096 (best plain IVF-PQ in M3); m ∈ {8, 16, 32, 64} on SIFT (adds m = 8 to widen the range); plain vs + exact re-ranking of the top 100 (`IndexRefineFlat`, k_factor = 10); same tune → select → eval protocol.
 11. **Before each Part 3/4 run:** write the hypothesis yourself, commit it, and (recommended) push it to GitHub.
 
 ## 16. Report preparation map
 
 | Report item | Evidence needed | Source (planned) |
 |---|---|---|
-| Q1 fastest index at recall 0.95, per dataset | QPS@0.95 table + Pareto plots | M3 results.csv, figures |
-| Q2 build time / memory; what PQ saves and loses | build/size table + Part 3 | M3, M4 |
-| Q3 Part 3/4 findings; when headline numbers mislead | hypothesis vs results, Part 4 figure | M4, M5 |
+| Q1 fastest index at recall 0.95, per dataset | HNSW on both: SIFT 6,783 QPS (3.97× IVF-Flat), GloVe 762.5 (1.85×); GloVe 8.9× slower for HNSW; IVF-PQ never reaches 0.95 | M3 ✔ |
+| Q2 build time / memory; what PQ saves and loses | HNSW 47–135 s, +80.6–272 B/vec of links; IVF dominated by k-means (SIFT 5 → 74 → 292 s for nlist 1K → 4K → 16K); PQ 6.9–22.5× smaller than IVF-Flat but capped at 0.88/0.87 recall; build scaling with threads | M3 ✔, Part 3 (M4) |
+| Q3 Part 3/4 findings; when headline numbers mislead | hypothesis vs results, Part 4 figure; M3 adds: the GloVe vs SIFT gap, sweep-limited maxima | M4, M5 |
 | Q4 150K vs 10M vectors, 100 ms, 16 GB | exact single-query latency: 26.3 ms (SIFT 1M), 25.0 ms (GloVe 1.18M), scan about 19 GB/s → linear in n·d (assumption to check). Flat 512 / 400 B/vector → 10M SIFT = 5.1 GB raw | M2 ✔ (measured part), M3 |
-| Q5 two ways the benchmark could mislead | measured in M2: P vs E core (−25%), unpinned variance (7%), run-to-run 5%, FAISS default batch path (no speed-up below 128K queries), tie handling (65 SIFT queries would be wrongly penalised by id matching) | M2 ✔, later |
+| Q5 two ways the benchmark could mislead | M2: P vs E core (−25%), unpinned variance (7%), run-to-run 5%, FAISS default batch path, tie handling (65 SIFT queries). M3: SIFT query halves differ in difficulty (+0.016 recall); tune/eval QPS of the same configuration differ by up to 34%; build times depend on threads (HNSW 5.45×) | M2 ✔, M3 ✔ |
 | Machine specs / versions | `results/metadata/environment.json` | M1 ✔ |

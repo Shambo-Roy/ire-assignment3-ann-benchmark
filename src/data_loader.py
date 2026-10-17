@@ -116,11 +116,20 @@ class Dataset:
     name: str
     train: np.ndarray        # (n, d) float32, normalised if spec.normalize
     queries: np.ndarray      # (q, d) float32, normalised if spec.normalize
-    gt_neighbors: np.ndarray  # (q, 100) int64, ground truth from the file
-    gt_distances: np.ndarray  # (q, 100) float32, in the *source* metric of the file
+    gt_neighbors: np.ndarray | None   # (q, 100) int64 from the file; None when the base is a subset
+    gt_distances: np.ndarray | None   # (q, 100) float32, in the *source* metric of the file
     split: QuerySplit
     zero_norm_train: int = 0
     zero_norm_queries: int = 0
+    n_base_full: int = 0               # rows in the file's train set (== len(train) unless subset)
+
+    @property
+    def is_subset(self) -> bool:
+        return len(self.train) < self.n_base_full
+
+    @property
+    def dataset_id(self) -> str:
+        return self.name if not self.is_subset else f"{self.name}_first{len(self.train)}"
 
     @property
     def tune_queries(self) -> np.ndarray:
@@ -139,17 +148,26 @@ class Dataset:
         return self.gt_neighbors[self.split.eval]
 
 
-def load_dataset(name_or_spec: str | DatasetSpec, path: str | Path | None = None) -> Dataset:
-    """Load a whole ann-benchmarks dataset into RAM (about 0.5 GB for SIFT or GloVe)."""
+def load_dataset(name_or_spec: str | DatasetSpec, path: str | Path | None = None,
+                 max_base: int | None = None) -> Dataset:
+    """Load an ann-benchmarks dataset into RAM (about 0.5 GB for SIFT or GloVe).
+
+    max_base: keep only the first max_base train vectors (used by --quick). The stored ground
+    truth refers to the full set, so it is dropped (None) and must be recomputed by exact search.
+    """
     spec = DATASETS[name_or_spec] if isinstance(name_or_spec, str) else name_or_spec
     path = Path(path) if path else spec.path
     with h5py.File(path, "r") as f:
-        train = np.ascontiguousarray(f["train"][:], dtype=np.float32)
+        n_full = f["train"].shape[0]
+        n = n_full if max_base is None else min(int(max_base), n_full)
+        train = np.ascontiguousarray(f["train"][:n], dtype=np.float32)
         queries = np.ascontiguousarray(f["test"][:], dtype=np.float32)
-        gt_n = f["neighbors"][:].astype(np.int64)
-        gt_d = f["distances"][:].astype(np.float32)
+        gt_n = gt_d = None
+        if n == n_full:
+            gt_n = f["neighbors"][:].astype(np.int64)
+            gt_d = f["distances"][:].astype(np.float32)
     zt = zq = 0
     if spec.normalize:
         train, zt = l2_normalize(train)
         queries, zq = l2_normalize(queries)
-    return Dataset(spec.name, train, queries, gt_n, gt_d, split_queries(len(queries)), zt, zq)
+    return Dataset(spec.name, train, queries, gt_n, gt_d, split_queries(len(queries)), zt, zq, n_full)

@@ -78,6 +78,11 @@ def collect() -> dict:
             info["faiss_compile_options"] = None
     except ImportError:
         info["faiss_omp_max_threads_default"] = None
+    try:
+        from src.threads import describe
+        info["threading"] = describe()   # CPU topology, P-core set, FAISS OpenBLAS config/threads
+    except Exception as e:               # never let the environment record fail
+        info["threading"] = f"unavailable: {e}"
     return info
 
 

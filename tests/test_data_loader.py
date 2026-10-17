@@ -132,6 +132,16 @@ def test_normalised_euclidean_ranking_equals_cosine_ranking():
     np.testing.assert_allclose(l2, 2 - 2 * cos, atol=1e-5)
 
 
+def test_subset_load_keeps_prefix_and_drops_stale_ground_truth(euclid_file):
+    spec = fake_spec("e", euclid_file, "euclidean", False)
+    full = load_dataset(spec, euclid_file)
+    sub = load_dataset(spec, euclid_file, max_base=100)
+    assert not full.is_subset and full.gt_neighbors is not None and full.dataset_id == "e"
+    assert sub.is_subset and sub.gt_neighbors is None and sub.dataset_id == "e_first100"
+    np.testing.assert_array_equal(sub.train, full.train[:100])
+    np.testing.assert_array_equal(sub.queries, full.queries)
+
+
 def test_load_dataset_normalises_only_when_spec_says_so(angular_file):
     raw = load_dataset(fake_spec("a", angular_file, "angular", False), angular_file)
     nrm = load_dataset(fake_spec("a", angular_file, "angular", True), angular_file)

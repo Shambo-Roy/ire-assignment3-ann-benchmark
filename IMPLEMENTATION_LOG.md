@@ -17,19 +17,19 @@ Due: 25 Oct 2026, 23:59 IST. Submission: `<rollnumber>_A3.zip` with four top-lev
 | D1 | SIFT-1M (128-d) and GloVe-100 (1.18M, 100-d) from ann-benchmarks | COMPLETED (validated) | `results/metadata/dataset_*.json` = PASSED |
 | D2 | Normalise GloVe, Euclidean distance everywhere | COMPLETED (code + synthetic tests) | `l2_normalize`, 3 tests |
 | D3 | Tune on the first 5,000 queries, report on the last 5,000 | COMPLETED (code + tests) | `split_queries`, 3 tests |
-| P1.1 | Exact search with FAISS as reference (`IndexFlatL2`, decision A3) | PLANNED (M2) | |
-| P1.2 | Own recall@10, distance-based so ties at rank 10 are not mistakes (decision A2), plus unit tests for tied and untied cases | PLANNED (M2), design approved | |
-| P1.3 | Exact results agree with the stored neighbours (all 10,000 queries). The M1 spot check (10 queries) passed on both datasets | PLANNED (M2) | |
-| P1.4 | Time exact search one query at a time vs batched, and explain the difference | PLANNED (M2) | |
-| P1.5 | Measure and report the number of tied queries at the rank-10 boundary, not hardcoded | PLANNED (M2) | M1 measured exact equality only: SIFT 137, GloVe 1 |
-| T1 | Timing method: single thread, repeated, median, P-core pinning with verified mapping (decision A1) | PLANNED (M2), design approved | mapping verified, section 2 |
-| T2 | Build: multi-threaded on the verified P-core logical processors. OpenMP and OpenBLAS both set and verified. Build timing kept separate from query timing. Build thread configuration recorded (A5) | PLANNED (M2 module, M3 use), controls verified | design revision B |
-| T3 | No concurrent benchmarks (lock file, sequential `run_all.sh`) (A5) | PLANNED (M2) | |
-| G1 | Hypothesis guard: refuse Part 3/4 if the hypothesis is missing, empty, template-only or uncommitted (A6) | PLANNED (tests in M2 or M4) | |
-| G2 | Provenance columns in every result row: commit, UTC time, experiment id, configuration, seed, input id, metrics (A6) | PLANNED (M2 schema) | |
-| G3 | After each run: journal summary with output hashes, then commit (A6) | PLANNED | |
+| P1.1 | Exact search with FAISS as reference (`IndexFlatL2`, decision A3) | COMPLETED (M2) | `experiments/part1_exact.py`; reference cached in `data/cache/` |
+| P1.2 | Own recall@10, distance-based so ties at rank 10 are not mistakes (decision A2), plus unit tests for tied and untied cases | COMPLETED (M2) | `src/recall.py`; 16 tests in `tests/test_recall.py` |
+| P1.3 | Exact results agree with the stored neighbours (all 10,000 queries) | COMPLETED (M2): recall 1.000 both ways on both datasets; 65 SIFT / 1 GloVe id differences, all ties | `results/metadata/part1_*_reference.json` |
+| P1.4 | Time exact search one query at a time vs batched, and explain the difference | COMPLETED (M2): 8.57× SIFT, 8.36× GloVe (1 thread, BLAS path); mechanism in the M2 entry | `results/results.csv` (`p1_exact`) |
+| P1.5 | Measure and report the number of tied queries at the rank-10 boundary, not hardcoded | COMPLETED (M2): SIFT 137, GloVe 2 at 1e-6, with sensitivity table | `part1_*_reference.json` → `boundary_ties` |
+| T1 | Timing method: single thread, repeated, median, P-core pinning with verified mapping (decision A1) | COMPLETED (M2); pinning validated by calibration + diagnostic | `src/threads.py`, `src/timing.py`, `pinning_probe.json` |
+| T2 | Build: multi-threaded on the verified P-core logical processors. OpenMP and OpenBLAS both set and verified. Build timing kept separate from query timing. Build thread configuration recorded (A5) | IN PROGRESS: `build_phase()` implemented, tested and used for Flat; ANN builds in M3 | `src/threads.py` |
+| T3 | No concurrent benchmarks (lock file, sequential `run_all.sh`) (A5) | COMPLETED (M2) | `benchmark_lock`, 2 tests |
+| G1 | Hypothesis guard: refuse Part 3/4 if the hypothesis is missing, empty, template-only or uncommitted (A6) | IMPLEMENTED + TESTED (M2, 9 tests); used from M4 | `src/provenance.py` |
+| G2 | Provenance columns in every result row: commit, UTC time, experiment id, configuration, seed, input id, metrics (A6) | COMPLETED (M2 schema, used by Part 1) | `src/results_io.py` |
+| G3 | After each run: journal summary with output hashes, then commit (A6) | IN USE (M2 entry has hashes) | section 5, M2 |
 | P2.1 | HNSW, IVF-Flat, IVF-PQ on both datasets: several build settings, search-parameter sweep up to recall ≥ 0.95 | PLANNED (M3) | |
-| P2.2 | QPS measured one query at a time, single thread, median of repeats | PLANNED (M2 harness, M3 use) | |
+| P2.2 | QPS measured one query at a time, single thread, median of repeats | HARNESS COMPLETED (M2); used for ANN in M3 | `src/timing.py` |
 | P2.3 | Recall-vs-QPS plot per dataset (Pareto front per index + exact) | PLANNED | |
 | P2.4 | Table: QPS at recall 0.90 / 0.95 | PLANNED | |
 | P2.5 | Table: build time, index size, bytes/vector at recall 0.95 | PLANNED | |
@@ -39,8 +39,8 @@ Due: 25 Oct 2026, 23:59 IST. Submission: `<rollnumber>_A3.zip` with four top-lev
 | P5.1 | Report ≤ 5 pages that answers Q1–Q5 with mechanisms | PLANNED | |
 | P5.2 | Machine specs + library versions | IN PROGRESS | `results/metadata/environment.json` |
 | P5.3 | `README.md`, `requirements.txt`, `hypothesis.md` | IN PROGRESS | files exist |
-| P5.4 | `bash run_all.sh` (full) and `--quick` (under 15 min on a laptop), run from `code/` and writing to the top-level `results/` | IN PROGRESS (stub) | `run_all.sh`; output location verified 2026-10-16 |
-| P5.5 | `results/results.csv` (one row per run behind any reported number), `results/figures/`, at the top level | PLANNED | the directory exists at `../results/` |
+| P5.4 | `bash run_all.sh` (full) and `--quick` (under 15 min on a laptop), run from `code/` and writing to the top-level `results/` | IN PROGRESS: stages up to Part 1. Quick Part 1 took 33 s | `run_all.sh` |
+| P5.5 | `results/results.csv` (one row per run behind any reported number), `results/figures/`, at the top level | IN PROGRESS: 13 Part 1 rows; no figures yet | `../results/results.csv` |
 | P5.6 | `ai_log/` (top level) with all prompts and responses, plus `ai_statement.md` classifying every file | IN PROGRESS | `../ai_log/` |
 | P5.7 | No datasets or index files in the zip; no ann-benchmarks framework; no copied numbers | ENFORCED | `.gitignore`, data dir outside repo |
 | P5.8 | Own recall, timing and plotting code; FAISS for all indexes (decision A3) | POLICY | |
@@ -330,6 +330,183 @@ ls .venv/Lib/site-packages/faiss_cpu.libs                 # vcomp140.dll, libope
 OPENBLAS_NUM_THREADS=1 python -c "...openblas_get_num_threads()"   # -> 1
 ```
 
+### Milestone 2: Part 1 exact baseline (2026-10-17)
+
+**Status:** COMPLETED. All Part 1 requirements have code, tests and measured results. **Awaiting the author's review before Milestone 3.**
+
+**Commits:** design `d526e1e` → M2 code `45bed0f` → `run_all.sh` stage + pinning diagnostic `e098ca9`
+(= the `git_commit` of every reported row) → this journal update (next commit). Results are hashed below (A6).
+
+**Files created:** `src/recall.py`, `src/threads.py`, `src/timing.py`, `src/provenance.py`, `src/results_io.py`,
+`experiments/__init__.py`, `experiments/part1_exact.py`, `experiments/probes/__init__.py`, `experiments/probes/pinning_probe.py`,
+`tests/test_recall.py`, `tests/test_threads_timing.py`, `tests/test_provenance.py`, `../ai_log/milestone2/prompts.md`.
+**Modified:** `src/data_loader.py` (`max_base` subset, `dataset_id`, `is_subset`; stored GT dropped for subsets),
+`src/environment_info.py` (records topology and FAISS OpenBLAS config), `tests/test_data_loader.py` (+1 subset test), `run_all.sh`
+(Part 1 stage, full and `--quick`), `README.md`, `IMPLEMENTATION_LOG.md`, `../ai_log/ai_statement.md`.
+**Outputs (outside git):** `results/results.csv` (13 rows), `results/metadata/part1_{sift,glove}_reference.json`,
+`results/metadata/pinning_probe.json`, logs `part1_full_run.log`, `pinning_probe.log`, `part1_run1_dirty_tree.log` (superseded run, kept for the record),
+`results/quick/` (quick-mode outputs), and caches `data/cache/<dataset>_exact_top100.npz` (16 MB each, outside the zip, reused by M3).
+
+**What was implemented**
+1. `recall.py`: decision A2, exactly as specified.
+   - `true_sq_distances` re-scores any id list in float64 (−1 → +inf, gathered in query chunks).
+   - `reference_from_candidates` sorts candidates by float64 distance, then by id.
+   - `recall_at_k` scores first occurrences only, ignores invalid ids, uses τ + 1e-6·max(τ, 1e-12), and always divides by k.
+   - `boundary_tie_stats` reports tie counts, a tolerance-sensitivity table and gap statistics.
+2. `threads.py`: decisions A1 and A5.
+   - CPU-set topology comes from Windows (with a fallback elsewhere).
+   - `build_phase()` uses all fastest-class CPUs, with OpenMP = OpenBLAS = their count.
+   - `search_phase()` uses 1 pinned CPU with OpenMP = OpenBLAS = 1.
+   - Calibration phases cover unpinned single-thread and multi-thread search.
+   - Every setting is read back and raises an error on mismatch. `CpuWallTimer` measures CPU vs wall time.
+3. `timing.py`: warm-up + R timed passes, median/min/max/all QPS, cpu/wall `thread_check` (limit 1.3), and the benchmark lock with stale-PID recovery.
+4. `provenance.py`: `git_info`, `run_metadata` (run id, UTC time, HEAD, dirty, reportable) and `require_committed_hypothesis` (A6, implemented and
+   tested now, used from M4). It also refuses cleanly when the file is not UTF-8.
+5. `results_io.py`: the A6 column schema plus `search_mode` and `notes`. Rerunning replaces only rows with the same
+   (experiment_id, dataset_id, n_base); unknown columns are rejected.
+6. `experiments/part1_exact.py`:
+   - builds `IndexFlatL2` under `build_phase()`;
+   - computes an untimed exact top-100 for all 10,000 queries and re-scores it in float64 to get the reference τ;
+   - checks FAISS and the stored ground truth against τ;
+   - measures ties per split;
+   - times five configurations (below), plus `--calibrate`;
+   - `--quick` uses the first 100,000 base vectors and writes to `results/quick/`.
+
+**Key decisions made during M2 (and why)**
+- **FAISS 1.15.1's batch code path, a finding.** `faiss.cvar.distance_compute_blas_threshold` defaults to **128,000** here (measured).
+  For any batch of fewer than 128,000 queries, FAISS therefore uses the per-query SIMD scan, parallelised over queries with OpenMP, not BLAS.
+  A "batch" timing with default settings on one thread is the same as single queries (measured 0.99–1.01×).
+  The driver therefore times both, with clear labels:
+  - **primary batch** = BLAS path (threshold set to 20, the classic FAISS default), 1 thread;
+  - **explanation row** = FAISS's default path, 1 thread;
+  - **secondary** rows = both paths on the 12 P-core threads.
+
+  This adds rows. It does not change the approved design (single-threaded primary comparison).
+- **Query counts.** Single-query and default-path rows time the first **500** eval queries (≈13 s per pass at ≈38 QPS).
+  BLAS-path rows time all **5,000** eval queries. Primary rows use R = 5 with 1 warm-up, secondary rows R = 3. Recall is
+  computed for exactly the timed queries. All reported timings use eval queries only. The tune split was used for nothing.
+- **Reference = FAISS exact top-100 re-scored in float64.** The τ for every later milestone comes from this cached reference. Batched search in
+  FAISS computes ‖x‖² + ‖q‖² − 2q·x in float32, which can reorder near-equal neighbours; float64 re-scoring removes that.
+- **Index size** = `len(faiss.serialize_index(index))`. For Flat: SIFT 512,000,045 B = 512.0 B/vector (128 × 4 B + 45 B header);
+  GloVe 473,405,645 B = 400.0 B/vector. "Build time" for Flat is only copying vectors (0.15 s SIFT, 0.14 s GloVe) and is not meaningful.
+
+**Commands executed**
+```
+.venv/Scripts/python -m pytest -q                                   # 54 -> 55 passed (see section 10)
+python - (20-query estimate)                                        # sizing: 41 qps single, 38 qps "batch" -> led to the finding above
+python - (BLAS-threshold diagnosis, 200 queries)                    # threshold 128000; 1T BLAS 340 qps vs default 38.8
+.venv/Scripts/python -m experiments.part1_exact --quick --calibrate --n-single 200 --repeats 3 --secondary-repeats 2 --calibration-queries 100   # 33 s
+git commit 45bed0f (code)
+.venv/Scripts/python -m src.environment_info
+.venv/Scripts/python -m experiments.part1_exact --calibrate         # run 1: rows marked git_dirty -> superseded (bug 3)
+git commit e098ca9 (run_all.sh, pinning probe)
+.venv/Scripts/python -m experiments.probes.pinning_probe            # about 4 min
+.venv/Scripts/python -m experiments.part1_exact --calibrate         # run 2 (reported), about 12 min
+sha256sum results/...                                               # provenance hashes below
+```
+
+**Measured results (run 2, commit `e098ca9`, 2026-10-17; all rows `git_dirty=False`, `reportable=True`; single-thread rows `thread_check=PASS`, cpu/wall 0.97–0.99)**
+
+*Ground-truth agreement (all 10,000 queries; τ = float64 10th-nearest distance from our exact search):*
+
+| | SIFT | GloVe |
+|---|---|---|
+| FAISS exact top-10, recall@10 vs τ | 1.000 (0 queries < 1) | 1.000 (0 queries < 1) |
+| Stored ground-truth top-10, recall@10 vs τ | **1.000** (0 queries < 1) | **1.000** (0 queries < 1) |
+| Queries where the stored 10th distance ≠ our τ (beyond tolerance) | 0 | 0 |
+| Queries whose stored top-10 **id set** differs from ours | **65** | **1** |
+| …of which every difference is a boundary tie (recall 1.0) | 65 | 1 |
+| FAISS float32 top-10 id set ≠ float64-re-scored top-10 | 0 | 1 (within tolerance) |
+| Reference computation time (10,000 × top-100, 12 threads, untimed for QPS) | 15.3 s | 19.7 s |
+
+→ **Our exact search agrees with the stored ground truth on every query.** Comparing id sets naively would have reported 65 SIFT and 1 GloVe
+"disagreements". Every one of them is a tie at the 10th neighbour, which is exactly what A2 is designed to handle.
+
+*Boundary ties (rank 11 tied with rank 10), measured, not hardcoded:*
+
+| | SIFT all / tune / eval | GloVe all / tune / eval |
+|---|---|---|
+| Tied at rel_tol = 1e-6 | **137** / 74 / 63 | **2** / 1 / 1 |
+| Sensitivity (tolerance 0 / 1e-7 / 1e-6 / 1e-5 / 1e-4) | 137 / 137 / 137 / 137 / 226 | 0 / 1 / 2 / 18 / 195 |
+| Smallest positive relative gap d₁₁−d₁₀ | 1.34e-5 | 2.1e-10 |
+| Smallest gap above tolerance | 1.34e-5 | 2.53e-6 |
+
+Interpretation:
+- **SIFT:** squared distances are integers, so ties are exact. The count is stable from tolerance 0 to 1e-5, and the nearest non-tie is 13× above the tolerance.
+- **GloVe:** distances are continuous, so the tie count *depends on the tolerance*. The 2.1e-10 gap is far below what float32-normalised data can
+  resolve. M1 saw it as an exact tie in the stored float32 distances, which fits. The smallest gap above the tolerance (2.5e-6) is only 2.5× the
+  tolerance, so the boundary is not cleanly separated on GloVe.
+- Practical effect: at most 2 of 10,000 GloVe queries are affected, which cannot move any reported recall noticeably.
+
+*Exact search timing (eval queries, median of R passes):*
+
+| Row (role) | Threads | Queries | SIFT QPS (min–max) | GloVe QPS (min–max) |
+|---|---|---|---|---|
+| Single query per call (**primary**) | 1, pinned cpu 10 | 500 | **38.05** (37.7–38.4) → 26.3 ms/q | **39.98** (39.7–40.7) → 25.0 ms/q |
+| Batch, BLAS path (**primary batch**) | 1, pinned | 5,000 | **325.97** (323.5–332.7) = **8.57×** | **334.04** (332.0–337.9) = **8.36×** |
+| Batch, FAISS default path (explanation) | 1, pinned | 500 | 37.69 = 0.99× single | 40.30 = 1.01× single |
+| Batch, BLAS path (secondary) | 12 (P-cores) | 5,000 | 669.78 = 2.05× BLAS-1T | 658.59 = 1.97× BLAS-1T |
+| Batch, FAISS default path (secondary) | 12 (P-cores) | 500 | 186.36 = 4.95× default-1T | 235.33 = 5.84× default-1T |
+
+*Why batched exact search is about 8.5× faster on one thread (mechanism, supported by the measurements):*
+1. One single query must stream the **whole** base through the core: 0.512 GB (SIFT) or 0.473 GB (GloVe). It does only about 2 floating-point
+   operations per 4-byte value. The measured rates imply **19.5 GB/s** (SIFT) and **18.9 GB/s** (GloVe) of data read and only about 9.6 GFLOP/s.
+   The two datasets have different n and d but read data at almost the same rate, which is consistent with a **memory-bandwidth-bound** scan.
+   *Not verified:* we did not run a separate memory-bandwidth benchmark.
+2. The BLAS path turns the batch into a matrix product (−2·Q·Xᵀ). Each block of base vectors is loaded into cache once and reused against many
+   queries, so the work becomes **compute-bound**: 83.4 (SIFT) and 79.1 (GloVe) GFLOP/s, about 8.7× more arithmetic per second.
+   The measured speed-up equals that factor.
+3. Simply sending many queries in one call gives nothing (default-path row: 0.99–1.01×). The Python call overhead is negligible compared with a
+   26 ms scan. **The gain comes from data reuse (the GEMM algorithm), not from batching the calls.**
+4. With 12 threads, the BLAS path gains only about 2× more (cpu/wall about 11.7, so most of the extra CPU time is spent waiting). The cause is
+   *not determined*: possible factors include shared memory bandwidth, 6 physical cores (12 threads are SMT pairs), and FAISS's
+   top-k selection step. This row is secondary and is not used for any QPS table.
+
+*CPU placement (calibration + diagnostic; SIFT, single-query, 1 thread):*
+
+| | Calibration (200 q × 5) | Pinning diagnostic (100 q × 2, two rounds in opposite order; mean of round medians) |
+|---|---|---|
+| Pinned P-core (cpu 10) | 38.3 QPS (spread 0.9%) | cpu 10: 37.9; all 12 P-core CPUs: 37.6–38.5 |
+| Pinned E-core (cpu 12) | 28.6 QPS (spread 1.3%) | cpu 12: 28.7, cpu 13: 28.8 |
+| Unpinned, 1 thread | 32.4 QPS (spread 6.9%) | 34.9 |
+
+What this shows:
+- **Pinning to a P-core gives the highest and most stable QPS.**
+- An E-core is about 25% slower.
+- Unpinned runs land in between and vary more, which fits Windows sometimes moving the thread to an E-core. This is an inference; scheduling
+  was not traced.
+- Run 1's calibration showed the opposite (unpinned 37.7 > pinned 35.8). That **did not repeat** in run 2 or in the diagnostic, and is treated
+  as run-to-run variation (see the next point).
+- **No change to the A1 policy is needed.**
+
+*Run-to-run variation (not just within-run spread):* the same configuration measured in run 1 → run 2 (different commits, same code) gave
+SIFT single 36.26 → 38.05 (+4.9%) and GloVe single 40.66 → 39.98 (−1.7%). Within a run, the spread is about 1–3%.
+**Between-run variation of about 5% is larger than within-run spread.** QPS differences under 5% between configurations measured in
+different runs should not be interpreted (relevant to Q5).
+
+**Provenance (A6), SHA-256 of outputs at this commit:**
+```
+5521e3871e6bb768b881148f71f40d0dd07132a4785bb979eaec7e1bdfe4bb6a  results/results.csv
+8f2a47c1fd1a47a50825099b69fdcaa7707e257a10b1d72a00be2acbf1351d03  results/metadata/part1_sift_reference.json
+97a351b10381805eb4ae263934f9d4cc60d8cb52781f9ce40feb2419f48563ed  results/metadata/part1_glove_reference.json
+0c2b7bd4d957f4015e2a4db17fa87fe0c2912fffce79f242ca2ba639d94ec05b  results/metadata/pinning_probe.json
+7ff7bfca5ec02cf6da01ed0d7cdf3e4c8f320edc2a4b3790353ec6765029655a  results/metadata/environment.json
+```
+
+**What M2 establishes:**
+- The recall function is correct on 16 targeted unit tests and gives the expected results on real data.
+- FAISS exact search equals the stored ground truth under tie-aware scoring.
+- Single-query vs batched exact QPS on this machine, and the mechanism for the difference (data reuse).
+- P-core pinning is the most stable timing setup.
+- The thread controls hold during real runs (cpu/wall ≈ 1.0 on every single-thread row).
+
+**What it does not establish:**
+- The memory-bandwidth explanation is inferred from rates, not measured with a bandwidth benchmark.
+- Why 12-thread BLAS scales only 2×.
+- Behaviour on other machines, or under the `--quick` subset at scale (quick outputs exist but are not report numbers).
+
+**Remaining / next:** Milestone 3 (Part 2 ANN benchmarks), after the author's review.
+
 ---
 
 ## 6. Algorithms, formulas and implementation decisions
@@ -529,10 +706,14 @@ the rows, the journal commit `J`, and whether `H` was pushed to GitHub before th
 | `N_SPOT_CHECK` | 10 queries | cheap ground-truth sanity check. The full check is Part 1 |
 | `ANN_DATA_DIR` | default `../data` | portability |
 | `ANN_RESULTS_DIR` | default `../results` | submission layout (A4) |
-| `rel_tol` (recall) | 1e-6 (planned) | A2; far above float64 round-off, to be checked against measured neighbour gaps |
-| timing repeats R | 5 (planned), plus 1 warm-up | A1; median reported |
+| `rel_tol` (recall) | 1e-6 | A2; SIFT nearest non-tie gap 1.34e-5 (13× above). GloVe has a continuum of gaps (sensitivity table in M2) |
+| timing repeats R | 5, plus 1 warm-up | A1; median reported |
 | FAISS search threads (OpenMP / OpenBLAS) | 1 / 1 | assignment + A1 + A5; both pools verified to matter |
-| pinned search logical CPU | derived at runtime (expected: 10) | A1 |
+| `distance_compute_blas_threshold` | FAISS default 128000; set to 20 for the primary batch row and the untimed reference | M2 finding; see the M2 entry |
+| Part 1 timed queries | single/default-path: first 500 eval; BLAS path: all 5,000 eval | about 13 s per pass at 38 QPS; recall computed on exactly the timed queries |
+| Part 1 repeats | primary 5 (+1 warm-up), secondary 3 (+1) | A1 |
+| `--quick` base size | first 100,000 vectors; outputs in `results/quick/` | assignment suggestion |
+| pinned search logical CPU | derived at runtime = 10 (verified in `environment.json`) | A1; diagnostic: all P-core CPUs within 2.4% |
 | build affinity / OpenMP / OpenBLAS | all P-core logical CPUs (expected 0–11) / 12 / 12 | A5 |
 | `thread_check` cpu/wall threshold | 1.3 | A5; single-threaded probe runs measured 0.9–1.2 |
 | hypothesis minimum length | 30 words, no template text | A6 |
@@ -567,24 +748,54 @@ Milestone 1, **measured** 2026-10-16: `18 passed in 2.19s`.
 
 Design revision, **measured** 2026-10-16: `19 passed`.
 
+Milestone 2, **measured** 2026-10-17: **`55 passed in 6.00s`** (36 new tests; one test added during M2 after bug 1).
+
+| Test file | Tests | What they verify |
+|---|---|---|
+| `test_recall.py` | 16 | perfect = 1; disjoint = 0; order-invariant; tied non-reference id counts; inside vs outside the tolerance; hand-computed 0.7; duplicates once; −1 padding and short lists keep denominator 10; −1 never counts; τ = 0; equals naive id-intersection without ties; per-row independence; shape errors; float64 distances with padding; deterministic tie order of the reference; tie statistics including tolerance sensitivity |
+| `test_threads_timing.py` | 7 | topology covers all CPUs; search phase = 1 pinned CPU, OpenMP = OpenBLAS = 1 (read back); build phase = all fast CPUs; FAISS OpenBLAS found on Windows; single and batch timing give identical ids, each point is its own nearest neighbour; lock blocks a second holder and cleans up; stale lock replaced |
+| `test_provenance.py` | 11 | guard refuses template, unstaged, staged-only, too short, missing section, untracked file, non-UTF-8 file, dirty source (unless dev); accepts a committed hypothesis and returns its commit; git_info ignores untracked files; results.csv replacement idempotent; unknown columns rejected |
+| `test_data_loader.py` | +1 | subset load keeps the prefix and drops the stale ground truth |
+
+Real-data validation in M2: the ground-truth agreement checks in the M2 entry (all 10,000 queries, both datasets).
+
 Real-data validation, **measured** 2026-10-16: SIFT PASSED, GloVe PASSED (all checks; details in section 3).
 
 ## 11. Bugs encountered
 
 None in Milestone 1.
 
+**Milestone 2**
+1. *Test encoding bug.* Three provenance tests failed because `Path.write_text` without `encoding=` uses the Windows code page.
+   The "—" in the template became byte 0x97, and the guard then crashed with `UnicodeDecodeError`.
+   - **Fix:** the tests write UTF-8 explicitly.
+   - **Code hardening:** the guard now refuses a non-UTF-8 `hypothesis.md` with a clear message instead of crashing. A test was added.
+   - Root cause: platform default encoding.
+2. *Not a bug, but a wrong assumption caught by measurement:* FAISS 1.15.1 uses BLAS for exact search only at ≥ 128,000 queries.
+   The plan assumed batch = BLAS. Found by the 20-query sizing run (batch ≈ single) and diagnosed with an explicit threshold sweep.
+3. *Process bug: first full Part 1 run not reportable.* While run 1 was in progress I edited the tracked `run_all.sh`.
+   `run_metadata()` for the dataset stage ran after that edit, so the 10 `p1_exact` rows were correctly marked `git_dirty=True, reportable=False`
+   (the calibration rows, recorded earlier, were clean). The guard worked as designed.
+   - **Fix:** commit `e098ca9`, then a full re-run (run 2) with **no edits to tracked files during the run**. Run 2's rows replaced run 1's.
+   - Run 1's log is kept as `results/metadata/part1_run1_dirty_tree.log`.
+   - Lesson: never edit tracked files while a reportable benchmark is running.
+
 ## 12. Benchmark measurements
 
-None yet. No benchmarks have been run.
+Part 1 (M2): see the Milestone 2 entry in section 5. Source: `results/results.csv` rows `p1_exact` (10) and `p1_calibration` (3), commit `e098ca9`.
 
 ## 13. Figures and tables
 
-None yet.
+No figures yet (Part 1 needs none). Part 1 tables (ground-truth agreement, ties, timing, CPU placement) are in the M2 entry and are derived only from `results.csv` and `results/metadata/part1_*_reference.json`.
 
 ## 14. Limitations, assumptions, unresolved issues
 
 - The expected GloVe train count (1,183,514) and the cosine-distance encoding of stored distances come from the ann-benchmarks conventions. The validator will check them.
-- Hybrid P/E-core CPU: single-thread timing noise. Pinning is available (section 2); its benefit is not yet measured.
+- Hybrid P/E-core CPU: E-cores measured about 25% slower and unpinned runs vary more (7% vs 1% spread). All reported single-thread timings are pinned to a P-core.
+- **Run-to-run variation of about 5%** (SIFT single 36.3 → 38.1 QPS between runs 1 and 2) exceeds within-run spread (1–3%). Do not interpret differences under about 5% between separately run configurations.
+- GloVe tie count depends on the tolerance (0–195 queries for 0–1e-4). At 1e-6 only 2 queries are affected.
+- Single-query timings use 500 of the 5,000 eval queries (cost). BLAS-path rows use all 5,000.
+- The memory-bandwidth explanation of single-query speed is inferred (about 19 GB/s implied), not measured with a bandwidth benchmark. The reason 12-thread BLAS scales only 2× is not determined.
 - `results/` and `ai_log/` are not version-controlled (A4). Their history is not recoverable from git, so the hypothesis-ordering evidence relies on the mechanism in section 7.
 - FAISS-specific behaviours listed in A3 (HNSW build non-determinism, k-means subsampling, efSearch ≥ k).
 - Threading (design revision B): OpenMP and FAISS's OpenBLAS are independent pools, and FAISS's OpenBLAS defaults to 20 threads. Busy-waiting
@@ -592,8 +803,8 @@ None yet.
 - Probes and threading controls are Windows-specific (CPU-set API, `.dll` names). Other operating systems use the documented fallbacks, which are untested.
 - Provenance (A6) is procedural evidence, not tamper-proof. Clocks and git dates can be set arbitrarily.
 - Only ~7 GB of RAM was free at inspection time. Loading one dataset (~0.5 GB) plus an index is fine. Plan to process one dataset at a time.
-- `run_all.sh` is a stub. `--quick` needs a subset (for example the first 100K train vectors). On a subset the stored ground truth is
-  **invalid**, so it must be recomputed with exact FAISS search. This is planned for M2.
+- `run_all.sh` covers stages up to Part 1. `--quick` uses the first 100K base vectors. The stored ground truth is dropped there, and τ comes from our exact search (implemented in M2).
+- The 16 MB-per-dataset reference caches live in `data/cache/`, which is not submitted. `run_all.sh` regenerates them.
 - The global Python environment is not used. Graders should install from `requirements.txt`.
 - The SIMD level of the FAISS wheel is not recorded yet.
 
@@ -604,11 +815,13 @@ None yet.
 3. ~~First commit~~. Done (`a17ac94`, `0012673`), pushed to the private GitHub repo.
 4. **Save the session transcript** into `<submission>/ai_log/transcripts/` (see `ai_log/ai_statement.md`).
 5. ~~P-core pinning~~. Resolved by A1. ~~hnswlib~~. Resolved by A3 (FAISS only).
-6. **Review the design revision** and **commit it.** The moves show as deletions in git until committed.
+6. ~~Review and commit the design revision~~. Done (`d526e1e`).
 7. ~~Build thread policy~~. Approved and specified as A5, controls verified (design revision B).
 8. ~~Hypothesis-ordering mechanism~~. Approved and specified as A6.
-9. **Review design revision B / A5 / A6**, then commit (one commit can cover revisions A and B).
-10. **Decide (optional, A5):** include a secondary 12-thread batched exact-search row in Part 1? Recommendation: yes, clearly labelled.
+9. ~~Review revision B~~. Done (`d526e1e`).
+10. ~~Secondary 12-thread batch row~~. Included as labelled secondary rows (no explicit answer was received; the recommendation was applied). Easy to drop if you prefer.
+12. **Review Milestone 2** (this entry), in particular: (a) the added BLAS-path vs default-path batch rows; (b) 500-query single-query timing; (c) the GloVe tolerance sensitivity. Then approve Milestone 3.
+13. **Copy the session transcript** into `ai_log/transcripts/` when this session ends (it now also covers M2).
 11. **Before each Part 3/4 run:** write the hypothesis yourself, commit it, and (recommended) push it to GitHub.
 
 ## 16. Report preparation map
@@ -618,6 +831,6 @@ None yet.
 | Q1 fastest index at recall 0.95, per dataset | QPS@0.95 table + Pareto plots | M3 results.csv, figures |
 | Q2 build time / memory; what PQ saves and loses | build/size table + Part 3 | M3, M4 |
 | Q3 Part 3/4 findings; when headline numbers mislead | hypothesis vs results, Part 4 figure | M4, M5 |
-| Q4 150K vs 10M vectors, 100 ms, 16 GB | exact single-query latency (Part 1) and its scaling with n, index bytes/vector | M2, M3 |
-| Q5 two ways the benchmark could mislead | e.g. P/E-core scheduling, tune/eval split, single-thread vs batch, warm cache | all |
+| Q4 150K vs 10M vectors, 100 ms, 16 GB | exact single-query latency: 26.3 ms (SIFT 1M), 25.0 ms (GloVe 1.18M), scan about 19 GB/s → linear in n·d (assumption to check). Flat 512 / 400 B/vector → 10M SIFT = 5.1 GB raw | M2 ✔ (measured part), M3 |
+| Q5 two ways the benchmark could mislead | measured in M2: P vs E core (−25%), unpinned variance (7%), run-to-run 5%, FAISS default batch path (no speed-up below 128K queries), tie handling (65 SIFT queries would be wrongly penalised by id matching) | M2 ✔, later |
 | Machine specs / versions | `results/metadata/environment.json` | M1 ✔ |

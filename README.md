@@ -6,8 +6,18 @@ synthetic dimensionality experiment (Part 4).
 
 ## Current status
 
-**Milestone 1 (environment + data validation): COMPLETED.** Both datasets are downloaded and pass validation.
-Next is Milestone 2 (Part 1). See `IMPLEMENTATION_LOG.md` for the full record.
+- **Milestone 1 (environment + data validation): COMPLETED.** Both datasets are downloaded and validated.
+- **Milestone 2 (Part 1 exact baseline): COMPLETED** on 2026-10-17. Results: `../results/results.csv` (13 rows, commit `e098ca9`).
+- **Next:** Milestone 3 (Part 2 ANN benchmarks), after review. See `IMPLEMENTATION_LOG.md` for the full record.
+
+Part 1 headline numbers (eval queries, 1 thread pinned to a P-core, median of 5):
+
+| | SIFT-1M | GloVe-100 |
+|---|---|---|
+| Exact, one query at a time | 38.05 QPS (26.3 ms) | 39.98 QPS (25.0 ms) |
+| Exact, batch of 5,000 (BLAS path) | 325.97 QPS (8.57×) | 334.04 QPS (8.36×) |
+| Stored ground truth vs our exact search, recall@10 | 1.000 | 1.000 |
+| Queries with a tie at rank 10 (rel_tol 1e-6) | 137 | 2 |
 
 ## Directory layout
 
@@ -28,9 +38,16 @@ Assignment 3/                    # submission root
     │   ├── config.py            # paths, dataset registry, seed, query-split constants
     │   ├── data_loader.py       # HDF5 inspection, loading, GloVe normalisation, query split
     │   ├── environment_info.py  # machine specs + library versions -> ../results/metadata/
-    │   └── validate_data.py     # streaming dataset validation -> ../results/metadata/
+    │   ├── validate_data.py     # streaming dataset validation -> ../results/metadata/
+    │   ├── recall.py            # distance-based recall@10 with tie tolerance, float64 re-scoring
+    │   ├── threads.py           # CPU topology, build/search thread phases (OpenMP + OpenBLAS + affinity)
+    │   ├── timing.py            # single/batch timing (warm-up, median of repeats), benchmark lock
+    │   ├── provenance.py        # git provenance, hypothesis guard for Parts 3/4
+    │   └── results_io.py        # results.csv schema and writer
     ├── tests/                   # pytest unit tests (synthetic HDF5 fixtures, no real data needed)
-    ├── experiments/             # (planned) benchmark drivers for Parts 1-4
+    ├── experiments/
+    │   ├── part1_exact.py       # Part 1 driver
+    │   └── probes/              # diagnostics behind design decisions (Windows)
     ├── hypothesis.md            # Part 3 / Part 4 hypotheses (author-written, committed first)
     ├── IMPLEMENTATION_LOG.md    # technical journal
     ├── run_all.sh               # one-command reproduction (partial)
@@ -70,7 +87,13 @@ To keep the data somewhere else, set `ANN_DATA_DIR` to that folder. Do not renam
 | `.venv/Scripts/python -m src.environment_info` | write `../results/metadata/environment.json` |
 | `.venv/Scripts/python -m src.validate_data` | validate datasets, write `../results/metadata/dataset_*.json` (exit 2 if missing) |
 | `.venv/Scripts/python -m pytest -v` | run unit tests |
-| `bash run_all.sh` / `bash run_all.sh --quick` | currently: environment + tests + validation only |
+| `.venv/Scripts/python -m experiments.part1_exact --calibrate` | Part 1 on both datasets (about 12 min); rows -> `../results/results.csv` |
+| `.venv/Scripts/python -m experiments.part1_exact --quick --calibrate` | Part 1 on the first 100K vectors; outputs -> `../results/quick/` |
+| `.venv/Scripts/python -m experiments.probes.pinning_probe` | diagnostic: QPS pinned to each CPU (about 4 min) |
+| `bash run_all.sh` / `bash run_all.sh --quick` | environment, tests, validation, Part 1 (quick Part 1 takes about 33 s) |
+
+Benchmarks hold a lock file `../results/.benchmark.lock`, so two cannot run at once. Do not edit tracked files while a
+benchmark is running: rows record the git state, and a dirty tree makes them non-reportable.
 
 ## Requirements checklist
 
@@ -83,18 +106,18 @@ Legend: [x] done and validated, [~] partially done, [ ] not started, [!] blocked
 - [x] Validation of the real SIFT and GloVe files (both PASSED, `results/metadata/dataset_*.json`)
 
 **Part 1: exact baseline**
-- [ ] FAISS exact search (`IndexFlatL2`)
-- [ ] own recall@10: distance-based, ties at rank 10 not penalised, denominator 10, duplicates counted once (design approved)
-- [ ] recall unit tests for tied and untied cases
-- [ ] measured count of tied queries per dataset (not hardcoded)
-- [ ] exact vs ground-truth agreement on all 10,000 queries
-- [ ] single-query vs batch timing + explanation
+- [x] FAISS exact search (`IndexFlatL2`)
+- [x] own recall@10: distance-based, ties at rank 10 not penalised, denominator 10, duplicates counted once
+- [x] recall unit tests for tied and untied cases (16 tests)
+- [x] measured count of tied queries per dataset (SIFT 137, GloVe 2 at 1e-6; sensitivity recorded)
+- [x] exact vs ground-truth agreement on all 10,000 queries (recall 1.000; id differences are all ties)
+- [x] single-query vs batch timing + explanation (8.6× / 8.4×; mechanism in IMPLEMENTATION_LOG.md, M2)
 
 **Part 2: ANN benchmarks**
 - [ ] HNSW / IVF-Flat / IVF-PQ (all FAISS) build-parameter grids + search sweeps, both datasets
-- [ ] single-thread, one-query-at-a-time QPS, median of repeats, P-core pinning with verified mapping (design approved; mapping verified)
-- [ ] multi-threaded builds on the verified P-core logical CPUs, with OpenMP **and** OpenBLAS thread counts set and verified, and build timing separate from query timing (design approved; controls verified)
-- [ ] no concurrent benchmarks (lock file, sequential stages)
+- [~] single-thread, one-query-at-a-time QPS, median of repeats, P-core pinning (harness done and validated in M2; ANN use in M3)
+- [~] multi-threaded builds on the verified P-core logical CPUs, with OpenMP **and** OpenBLAS thread counts set and verified, and build timing separate from query timing (design approved; controls verified)
+- [x] no concurrent benchmarks (lock file, sequential stages)
 - [ ] recall-vs-QPS plots, QPS@0.90/0.95 table, build time / size / bytes-per-vector table
 - [ ] explanation of any recall ceiling
 
@@ -107,15 +130,15 @@ Legend: [x] done and validated, [~] partially done, [ ] not started, [!] blocked
 **Part 5: report and submission**
 - [~] environment and version record (`results/metadata/environment.json`)
 - [~] README / requirements.txt / hypothesis.md (exist, will grow)
-- [ ] top-level results/results.csv, results/figures/ (output location implemented and tested)
-- [~] run_all.sh (+ --quick under 15 min)
+- [~] top-level results/results.csv (Part 1 rows), results/figures/ (none yet)
+- [~] run_all.sh (+ --quick under 15 min): stages up to Part 1
 - [~] top-level ai_log/ (Milestone 1 prompt and response; the author still has to copy in the transcript)
 - [ ] report.pdf (max 5 pages, answers Q1-Q5)
 
 **Provenance (design approved)**
-- [ ] hypothesis guard: Part 3/4 refuse to start if the hypothesis is missing, empty, template-only or uncommitted
-- [ ] provenance columns in every result row (pre-run commit, UTC timestamp, experiment id, config, seed, input id, metrics)
-- [ ] after each run, a journal summary with result-file hashes is committed
+- [~] hypothesis guard: Part 3/4 refuse to start if the hypothesis is missing, empty, template-only or uncommitted (implemented + 9 tests; used from M4)
+- [x] provenance columns in every result row (pre-run commit, UTC timestamp, experiment id, config, seed, input id, metrics)
+- [~] after each run, a journal summary with result-file hashes is committed (done for Part 1)
 
 ## Known limitations
 
@@ -142,7 +165,6 @@ Diagnostic probes for the thread controls are in `experiments/probes/` (Windows 
 
 ## Next milestone
 
-Milestone 2 covers the Part 1 exact baseline. It adds the distance-based recall@10 and its unit tests, FAISS
-exact search, a check against the stored ground truth on all queries, the pinned single-thread timing harness
-(with a pinned/unpinned/E-core calibration), single-query vs batched timing, and the `results.csv` schema.
-The full specification is in `IMPLEMENTATION_LOG.md`, section 6 (decisions A1-A4).
+Milestone 3 covers Part 2 ANN benchmarks: FAISS HNSW, IVF-Flat and IVF-PQ on both datasets, with build grids,
+search-parameter sweeps tuned on the tune split and reported on the eval split, single-thread pinned QPS, recall-vs-QPS
+plots, and QPS@0.90/0.95 and build/size tables.

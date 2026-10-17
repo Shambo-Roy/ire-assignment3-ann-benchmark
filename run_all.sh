@@ -2,7 +2,7 @@
 # One-command reproduction. Usage:  bash run_all.sh [--quick]
 #
 # Outputs go to ../results (or ../results/quick with --quick); see README.md.
-# STATUS: partial. Implemented stages: environment, tests, dataset validation, Part 1.
+# STATUS: partial. Implemented stages: environment, tests, dataset validation, Part 1, Part 2.
 # Stages run strictly one after another (no concurrent benchmarks; see decision A5).
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -28,7 +28,14 @@ if [ "$QUICK" -eq 1 ]; then
   echo "== Part 1: exact baseline (quick: first 100,000 base vectors) =="
   "$PY" -u -m experiments.part1_exact --quick --calibrate --n-single 200 --repeats 3 \
         --secondary-repeats 2 --calibration-queries 100
+  echo "== Part 2: ANN benchmarks (quick grid) =="
+  "$PY" -u -m experiments.part2_ann --quick --n-time-tune 200 --repeats-tune 2 \
+        --n-time-eval 200 --repeats-eval 3
+  "$PY" -m experiments.part2_report --quick
 else
   echo "== Part 1: exact baseline =="
   "$PY" -u -m experiments.part1_exact --calibrate
+  echo "== Part 2: ANN benchmarks (full grid; long) =="
+  "$PY" -u -m experiments.part2_ann
+  "$PY" -m experiments.part2_report
 fi

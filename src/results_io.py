@@ -48,15 +48,21 @@ def read_rows(path: Path) -> list[dict]:
         return list(csv.DictReader(f))
 
 
-def replace_rows(rows: list[dict], path: Path | None = None) -> Path:
-    """Write rows, replacing earlier rows of the same (experiment_id, dataset_id, n_base)."""
+DEFAULT_KEY = ("experiment_id", "dataset_id", "n_base")
+
+
+def replace_rows(rows: list[dict], path: Path | None = None, key: tuple[str, ...] = DEFAULT_KEY) -> Path:
+    """Write rows, replacing earlier rows that share the same values in the `key` columns.
+
+    Default key: (experiment_id, dataset_id, n_base). Part 2 adds index_type and query_split
+    so that each index type / phase can be re-run independently.
+    """
     path = path or results_csv()
     unknown = {k for r in rows for k in r} - set(COLUMNS)
     if unknown:
         raise KeyError(f"unknown result columns: {sorted(unknown)}")
-    keys = {(str(r["experiment_id"]), str(r["dataset_id"]), str(r["n_base"])) for r in rows}
-    kept = [r for r in read_rows(path)
-            if (r["experiment_id"], r["dataset_id"], r["n_base"]) not in keys]
+    keys = {tuple(str(_cell(r.get(c))) for c in key) for r in rows}
+    kept = [r for r in read_rows(path) if tuple(r.get(c, "") for c in key) not in keys]
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".csv.tmp")
     with open(tmp, "w", newline="", encoding="utf-8") as f:

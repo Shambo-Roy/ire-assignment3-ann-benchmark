@@ -1,7 +1,8 @@
 # Versions actually installed and tested on 2026-10-16 (Python 3.12.10, Windows 11).
-# Packages will be added only when a milestone starts using them (e.g. matplotlib, pandas).
+# Packages are added only when a milestone starts using them (matplotlib: Milestone 3 plots).
 numpy==2.5.4
 h5py==3.16.0
 faiss-cpu==1.15.1
 psutil==7.2.2
 pytest==9.1.1
+matplotlib==3.11.2

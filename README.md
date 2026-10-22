@@ -10,7 +10,8 @@ synthetic dimensionality experiment (Part 4).
 - **Milestone 2 (Part 1 exact baseline): COMPLETED** on 2026-10-17. Results: `../results/results.csv` (13 rows, commit `e098ca9`).
 - **Milestone 3 (Part 2 ANN benchmarks): COMPLETED** on 2026-10-17. 367 rows, 2 figures, 3 tables; plus a build-scaling check.
 - **Hypotheses for Parts 3 and 4:** written by the author and committed in `55016fe` (pushed) before any Part 3/4 run.
-- **Next:** Milestone 4 (Part 3 compression), after review. See `IMPLEMENTATION_LOG.md` for the full record.
+- **Milestone 4 (Part 3 compression): COMPLETED** on 2026-10-22. 158 rows (guarded by hypothesis `55016fe`), main figure, 2 tables.
+- **Next:** Milestone 5 (Part 4 dimensionality), after review. See `IMPLEMENTATION_LOG.md` for the full record.
 
 Part 1 headline numbers (eval queries, 1 thread pinned to a P-core, median of 5):
 
@@ -30,6 +31,18 @@ Part 2 headline numbers (configuration chosen on tune queries; eval recall / sin
 | IVF-PQ | not reached | not reached | 0.884 (m=64) / 0.869 (m=50) |
 
 Figures: `../results/figures/part2_{sift,glove}_recall_vs_qps.png`. Tables: `../results/tables/part2_*.md`.
+
+Part 3 headline numbers (SIFT-1M, IVF-PQ nlist 4096; eval):
+
+| m (code bytes) | B/vector plain / + re-rank | Best recall plain | Best recall + re-rank top 100 | QPS @0.95, re-ranked |
+|---|---|---|---|---|
+| 8 | 18.3 / 530.3 | 0.415 | 0.888 | not reached |
+| 16 | 26.3 / 538.3 | 0.597 | 0.986 | 2,663 |
+| 32 | 42.3 / 554.3 | 0.746 | 0.999 | 1,637 |
+| 64 | 74.3 / 586.3 | 0.886 | 0.999 | 931 |
+
+Re-ranked recall equals the recall 10@100 of the candidate pool in every row. Re-ranking costs about 0.02 ms per query.
+Figure: `../results/figures/part3_compression.png`.
 
 ## Directory layout
 
@@ -64,6 +77,8 @@ Assignment 3/                    # submission root
     │   ├── part2_ann.py         # Part 2 driver (tune -> select -> eval)
     │   ├── part2_report.py      # Part 2 figures and tables from results.csv
     │   ├── build_scaling.py     # build time with P-core threads vs 1 thread
+    │   ├── part3_compression.py # Part 3 driver (hypothesis guard first)
+    │   ├── part3_report.py      # Part 3 figure and tables
     │   └── probes/              # diagnostics behind design decisions (Windows)
     ├── hypothesis.md            # Part 3 / Part 4 hypotheses (author-written, committed first)
     ├── IMPLEMENTATION_LOG.md    # technical journal
@@ -111,7 +126,9 @@ To keep the data somewhere else, set `ANN_DATA_DIR` to that folder. Do not renam
 | `.venv/Scripts/python -m experiments.part2_ann --quick` | Part 2 quick grid on the first 100K vectors (about 45 s) |
 | `.venv/Scripts/python -m experiments.part2_report [--quick]` | regenerate Part 2 figures and tables from results.csv |
 | `.venv/Scripts/python -m experiments.build_scaling [--quick]` | build-time scaling check (about 9 min) |
-| `bash run_all.sh` / `bash run_all.sh --quick` | environment, tests, validation, Part 1, Part 2 (quick: about 2 min in total) |
+| `.venv/Scripts/python -m experiments.part3_compression [--quick] [--dev]` | Part 3 (about 22 min; quick about 2 min). Refuses to start (exit 3) unless the Part 3 hypothesis is committed and the tree is clean; `--dev` allows a dirty tree but marks rows non-reportable |
+| `.venv/Scripts/python -m experiments.part3_report [--quick]` | Part 3 figure and tables from results.csv |
+| `bash run_all.sh` / `bash run_all.sh --quick` | environment, tests, validation, Parts 1-3 (quick: about 4 min in total) |
 
 Benchmarks hold a lock file `../results/.benchmark.lock`, so two cannot run at once. Do not edit tracked files while a
 benchmark is running: rows record the git state, and a dirty tree makes them non-reportable.
@@ -143,7 +160,10 @@ Legend: [x] done and validated, [~] partially done, [ ] not started, [!] blocked
 - [x] explanation of any recall ceiling (IVF-PQ plateau set by code size m; details in IMPLEMENTATION_LOG.md, M3)
 
 **Part 3: compression (SIFT)**
-- [x] hypothesis committed first (`55016fe`, guard accepts it), [ ] PQ sub-vector sweep, [ ] IVF-PQ vs IVF-PQ + rerank top-100
+- [x] hypothesis committed first (`55016fe`; the guard ran before the run, and every row records it)
+- [x] PQ sub-vector sweep (m = 8, 16, 32, 64 at nlist 4096)
+- [x] IVF-PQ vs IVF-PQ + exact re-rank of top 100: recall, speed, memory, candidate-pool recall, re-rank cost
+- [x] tuned on the first 5,000 queries, evaluated on the last 5,000; hypotheses 3.1-3.3 evaluated in IMPLEMENTATION_LOG.md (M4)
 
 **Part 4: dimensionality (synthetic)**
 - [x] hypothesis committed first (`55016fe`), [ ] seeded generator, [ ] d = 32/64/128(control)/256/512, exact + HNSW + IVF-Flat, [ ] main figure
@@ -151,13 +171,13 @@ Legend: [x] done and validated, [~] partially done, [ ] not started, [!] blocked
 **Part 5: report and submission**
 - [~] environment and version record (`results/metadata/environment.json`)
 - [~] README / requirements.txt / hypothesis.md (exist, will grow)
-- [~] top-level results/results.csv (Parts 1-2: 386 rows), results/figures/ (Part 2: 2 figures), results/tables/
-- [~] run_all.sh (+ --quick under 15 min): stages up to Part 2
+- [~] top-level results/results.csv (Parts 1-3: 544 rows), results/figures/ (3 figures), results/tables/
+- [~] run_all.sh (+ --quick under 15 min): stages up to Part 3
 - [~] top-level ai_log/ (Milestone 1 prompt and response; the author still has to copy in the transcript)
 - [ ] report.pdf (max 5 pages, answers Q1-Q5)
 
 **Provenance (design approved)**
-- [~] hypothesis guard: Part 3/4 refuse to start if the hypothesis is missing, empty, template-only or uncommitted (implemented + 9 tests; used from M4)
+- [x] hypothesis guard: Part 3/4 refuse to start if the hypothesis is missing, empty, template-only or uncommitted (used for Part 3; refused a dirty-tree run as designed)
 - [x] provenance columns in every result row (pre-run commit, UTC timestamp, experiment id, config, seed, input id, metrics)
 - [~] after each run, a journal summary with result-file hashes is committed (done for Part 1)
 
@@ -186,6 +206,6 @@ Diagnostic probes for the thread controls are in `experiments/probes/` (Windows 
 
 ## Next milestone
 
-Milestone 4 covers Part 3, compression on SIFT. It varies the number of PQ sub-vectors and compares plain IVF-PQ with IVF-PQ plus exact
-re-ranking of the top 100 candidates, in recall, speed and memory. Runs are guarded by the committed hypothesis (`55016fe`), tuned on the
-first 5,000 queries and evaluated on the last 5,000.
+Milestone 5 covers Part 4: dimensionality on seeded synthetic data. It uses random normalised vectors with d = 32, 64, 128 (control),
+256 and 512; 100,000 base vectors and 1,000 queries per setting; exact search, HNSW and IVF-Flat; and one main figure.
+It is guarded by the committed hypothesis (`55016fe`).

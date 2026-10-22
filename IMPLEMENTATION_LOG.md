@@ -34,13 +34,13 @@ Due: 25 Oct 2026, 23:59 IST. Submission: `<rollnumber>_A3.zip` with four top-lev
 | P2.4 | Table: QPS at recall 0.90 / 0.95 | COMPLETED (M3) | `results/tables/part2_qps_at_recall.md` |
 | P2.5 | Table: build time, index size, bytes/vector at recall 0.95 | COMPLETED (M3) | `results/tables/part2_build_cost_at_095.md` |
 | P2.6 | Explain any recall ceiling | COMPLETED (M3): IVF-PQ plateau set by m (quantization error); GloVe HNSW/IVF limits are sweep-limited | M3 entry, `part2_max_recall.md` |
-| P3 | Compression on SIFT: vary PQ m; IVF-PQ vs IVF-PQ + exact rerank of top 100; recall, speed, memory; hypothesis committed first | PLANNED (M4); hypothesis committed `55016fe` and pushed | |
+| P3 | Compression on SIFT: vary PQ m; IVF-PQ vs IVF-PQ + exact rerank of top 100; recall, speed, memory; hypothesis committed first | COMPLETED (M4): m ∈ {8,16,32,64}, nlist 4096; hypotheses 3.1–3.3 supported (memory caveat on 3.3) | `p3_compression` rows (158), `part3_compression.png`, `part3_*.md` |
 | P4 | Own synthetic data: dimensionality d ∈ {32, 64, 128 (control), 256, 512}, ≤ 500K vectors, seeded, ≥ 2 indexes, hypothesis committed first, 1 figure, ≤ 1 page | PLANNED | |
 | P5.1 | Report ≤ 5 pages that answers Q1–Q5 with mechanisms | PLANNED | |
 | P5.2 | Machine specs + library versions | IN PROGRESS | `results/metadata/environment.json` |
 | P5.3 | `README.md`, `requirements.txt`, `hypothesis.md` | IN PROGRESS: hypotheses written by the author and committed (`55016fe`) | files exist |
-| P5.4 | `bash run_all.sh` (full) and `--quick` (under 15 min on a laptop), run from `code/` and writing to the top-level `results/` | IN PROGRESS: stages up to Part 2. Quick Part 1 33 s + quick Part 2 45 s | `run_all.sh` |
-| P5.5 | `results/results.csv` (one row per run behind any reported number), `results/figures/`, at the top level | IN PROGRESS: 386 rows (Part 1 + Part 2), 2 figures, 3 tables | `../results/` |
+| P5.4 | `bash run_all.sh` (full) and `--quick` (under 15 min on a laptop), run from `code/` and writing to the top-level `results/` | IN PROGRESS: stages up to Part 3. Quick: Part 1 33 s + Part 2 45 s + Part 3 2.0 min | `run_all.sh` |
+| P5.5 | `results/results.csv` (one row per run behind any reported number), `results/figures/`, at the top level | IN PROGRESS: 544 rows (Parts 1–3), 3 figures, 5 tables | `../results/` |
 | P5.6 | `ai_log/` (top level) with all prompts and responses, plus `ai_statement.md` classifying every file | IN PROGRESS | `../ai_log/` |
 | P5.7 | No datasets or index files in the zip; no ann-benchmarks framework; no copied numbers | ENFORCED | `.gitignore`, data dir outside repo |
 | P5.8 | Own recall, timing and plotting code; FAISS for all indexes (decision A3) | POLICY | |
@@ -688,6 +688,144 @@ ea68705ae9cf9aa8723fc7f88db5b7ed5d446c42d0b0d939f730323f208968a8  results/tables
 
 **Remaining / next:** Milestone 4 (Part 3 compression experiment, guarded by hypothesis commit `55016fe`), after the author's review.
 
+### Milestone 4: Part 3 compression experiment (2026-10-22)
+
+**Status:** COMPLETED. **Awaiting the author's review before Milestone 5 (Part 4).**
+
+**Provenance (A6):**
+- Hypothesis commit **`55016fe`** (author-written, pushed 2026-10-17).
+- → M4 code `b230f71` (= `git_commit` of all 158 `p3_compression` rows; every row also stores
+  `hypothesis_commit = 55016fe` and the Part 3 section SHA-256 `f6912f6127119b01…`).
+- → this journal commit.
+- The guard ran first in every run:
+  - It **refused** the first quick attempt (dirty tree, exit 3).
+  - It allowed the `--dev` quick run (rows in `results/quick/`, not reportable).
+  - It passed for the full run on the clean tree.
+
+**Files created:** `experiments/part3_compression.py`, `experiments/part3_report.py`, `tests/test_part3.py`, `../ai_log/milestone4/{prompts,response}.md`.
+**Modified:**
+- `src/recall.py`: `pool_recall`; recall logic factored into `_correct_mask`, so the two cannot diverge.
+- `src/indexes.py`: `add_exact_refine`.
+- `src/results_io.py`: columns `pool_recall_10at100`, `candidate_qps_median`, `rerank_ms_per_query`.
+- `run_all.sh`: Part 3 stages, plus build scaling in the full run.
+- `README.md`, `IMPLEMENTATION_LOG.md`, `../ai_log/ai_statement.md`.
+
+**Outputs (outside git):**
+- `results/results.csv` (now 544 rows)
+- `results/figures/part3_compression.png`
+- `results/tables/part3_by_m.{csv,md}`, `results/tables/part3_rerank_cost.{csv,md}`
+- `results/metadata/part3_sift_builds.json`, `results/metadata/part3_sift.log`
+- `results/quick/` (quick run)
+
+**Design (one property varied: the number of PQ sub-vectors m)**
+
+| Fixed | Varied | Compared |
+|---|---|---|
+| SIFT-1M; nlist = 4096 (one seeded k-means, shared); nbits = 8; same tune/eval split and protocol as Part 2 | m ∈ {8, 16, 32, 64} (code = m bytes) | **plain** IVF-PQ (top 10 by PQ distance) vs **+ exact re-ranking** (`IndexRefineFlat`, k_factor = 10: PQ top 100, exact L2, best 10) |
+
+How the comparison is kept fair:
+- Both variants use **the same built IVF-PQ index**, verified in a pre-check and in `test_part3.py`, so at any nprobe the re-ranked
+  answer is computed from exactly the candidate pool that plain search with k = 100 returns. This is what hypothesis 3.2 asked for
+  ("using the same candidate pool").
+- For every row we also measure **pool recall 10@100**: the tie-aware fraction of the true top 10 present anywhere in the 100 candidates.
+  Eval rows of the re-ranked variant additionally time candidate generation alone (plain, k = 100). This gives
+  **re-rank cost = 1/QPS(refine) − 1/QPS(candidates)**.
+- Selection: per (variant, m), the tune Pareto front plus the fastest configuration reaching recall 0.50 / 0.80 / 0.90 / 0.95. Only those are evaluated on eval.
+
+**Commands executed**
+```
+python - (IndexRefineFlat pre-check, 20K random vectors)        # shares base, k_factor 10 = top 100, equals manual re-rank
+.venv/Scripts/python -m pytest -q                                # 90 -> 100 passed (see bug 2)
+.venv/Scripts/python -m experiments.part3_compression --quick    # guard REFUSED (dirty tree), exit 3, as designed
+.venv/Scripts/python -m experiments.part3_compression --quick --dev ...   # 2.0 min; rows in results/quick (not reportable)
+.venv/Scripts/python -m experiments.part3_report --quick
+git commit b230f71
+AskUserQuestion -> "Run it now (Recommended)" (estimate 25-40 min)
+.venv/Scripts/python -m experiments.part3_compression           # 21.9 min, exit 0
+.venv/Scripts/python -m experiments.part3_report
+sha256sum results/...
+```
+
+**Measured results (SIFT-1M, nlist 4096; eval queries; configurations chosen on tune)**
+
+*Per m (`results/tables/part3_by_m.md`):*
+
+| m | B/vector plain | B/vector + re-rank | Build (12 threads) | Best eval recall, plain | Best eval recall, re-ranked (= pool 10@100) | QPS @0.80 plain / re-ranked | QPS @0.90 re-ranked | QPS @0.95 re-ranked |
+|---|---|---|---|---|---|---|---|---|
+| 8 | 18.3 | 530.3 | 83.4 s | 0.4148 | 0.8879 | not reached / 5,568 (r = 0.859) | not reached | not reached |
+| 16 | 26.3 | 538.3 | 89.0 s | 0.5967 | 0.9861 | not reached / 5,841 (0.853) | **4,103** (0.927, nprobe 32) | **2,663** (0.967, nprobe 64) |
+| 32 | 42.3 | 554.3 | 103.0 s | 0.7462 | 0.9991 | not reached / 4,107 (0.856) | 2,707 (0.933) | 1,637 (0.977) |
+| 64 | 74.3 | 586.3 | 128.0 s | 0.8861 | 0.9993 | **1,729** (0.849) / 2,650 (0.856) | 1,627 (0.933) | 931 (0.977) |
+
+Build-time breakdown:
+- Shared k-means: 67.2 s.
+- PQ training: 6.5 / 12.4 / 24.0 / 46.5 s, linear in m.
+- Adding vectors: 9.4–14.4 s.
+- Copying the raw vectors for re-ranking: 0.14–0.16 s.
+
+Bytes per vector:
+- Plain = **m + 10.3 B** exactly for every m. The extra 10.3 B is an 8-byte id plus about 2.3 B of centroids and list overhead per vector.
+- Re-ranked = **plain + 512.0 B**, the float32 raw vector kept in RAM.
+
+*Cost of exact re-ranking (eval, same m and nprobe; `part3_rerank_cost.md`):*
+- The exact re-ranking step itself costs **0.012–0.030 ms per query** at every m and nprobe.
+  That is about 100 random-access reads of 512-byte vectors plus 100 exact distances, i.e. constant work independent of the scan size.
+  It is 9–15% of latency at nprobe ≤ 8 and 1–6% at nprobe ≥ 64.
+- Asking the PQ index for 100 instead of 10 candidates adds another 0.006–0.10 ms (larger result heap).
+- At the same nprobe, the re-ranked variant therefore runs at **0.79–1.02× the plain QPS** (tune rows, nprobe 8 / 32 / 128).
+- The subtraction is unreliable when the total latency is large. One value, m = 16 at nprobe 1024, came out as 0.107 ms at about 4 ms total latency.
+
+*Check of the mechanism:* **re-ranked recall@10 equals pool recall 10@100 in 78/78 re-ranked rows** (maximum difference 0.000000).
+Every re-ranked configuration also has recall ≥ plain recall at the same (m, nprobe).
+
+**Hypotheses vs results** (hypotheses written by the author in `55016fe`; each verdict is the reading of the measured data, for the author to confirm)
+
+| Hypothesis | Prediction | Measured | Reading |
+|---|---|---|---|
+| **3.1** more sub-vectors → better recall, more storage; gains may diminish | recall ↑ with m; storage ↑; diminishing returns | Plain best recall 0.415 → 0.597 → 0.746 → 0.886, rising at every m. Storage = m + 10.3 B, linear. Recall gained per extra byte: 0.0227 → 0.0093 → 0.0044 per byte (m 8→16→32→64), a 5× drop. With re-ranking, recall saturates: 0.888 → 0.986 → 0.999 → 0.999 | **Supported.** Also observed, not predicted: QPS at a fixed nprobe falls as m rises (plain at nprobe 32 on tune: 6,993 → 4,484 → 3,244 → 1,737), because computing PQ distances costs O(m) |
+| **3.2** exact re-ranking of top 100 improves or preserves recall; cannot recover neighbours absent from the pool | re-ranked ≥ plain; bounded by the pool | Re-ranked ≥ plain in every pair. Re-ranked = pool recall exactly (78/78 rows). Largest gains: m = 8 0.415 → 0.888, m = 16 0.597 → 0.986. The m = 8 shortfall (0.888) equals its pool recall, i.e. the remaining misses are neighbours that are absent from the top 100 | **Supported**, including the "cannot recover absent neighbours" clause, which was measured directly |
+| **3.3** re-ranking reduces QPS, but may give a better recall–speed trade-off | QPS ↓ at equal settings; better at similar recall | At equal (m, nprobe): QPS 0.79–1.02× plain. At similar recall it is much better: ≈ 0.85 → plain needs m = 64 (1,729 QPS), re-ranked m = 16 gives 5,841 QPS (**3.4×**). Plain cannot reach 0.90 at all. Re-ranking cost measured separately: 0.012–0.030 ms per query | **Supported** for speed. **Not in the hypothesis:** the gain is bought with memory, +512 B/vector (530–586 vs 18–74 B), which removes PQ's memory advantage when the raw vectors are kept in RAM |
+
+*What this implies (inference, for report Q2/Q3):*
+- With re-ranking, a **small code (m = 16) is the best choice**. Larger m only slows queries (m = 16 vs 64 at 0.95: 2,663 vs 931 QPS) for ≤ 0.013 extra recall.
+- What limits accuracy moves from code size (plain) to **candidate-pool coverage**, which is controlled by nprobe and k_factor.
+- PQ + re-ranking is **not** a memory saving if the full vectors stay in RAM: 538 B/vector vs IVF-Flat 528.5.
+- Its benefit is speed. At 0.95 it gives 2,663 QPS, against Part 2's IVF-Flat 1,709 (nlist 16384) and HNSW 6,783 (784 B/vector).
+  These are measured in different runs, so differences under about 5% would not be meaningful (M2).
+- A memory saving needs the raw vectors on disk or SSD, or a smaller refine store (for example SQ8). **Not tested.**
+
+**Anomaly (kept, not corrected):**
+- Eval row plain m = 64, nprobe 4: **3,357 QPS** (5 repeats 3,354–3,386, cpu/wall 1.00).
+- Tune measured **6,472 QPS** for the same configuration, and its own k = 100 candidate search measured 0.169 ms against its 0.298 ms.
+- The repeats are internally consistent, so something slowed the whole roughly 2-second measurement. The cause is unknown.
+- It affects one table cell: QPS@0.50 for plain m = 64. No hypothesis verdict depends on it.
+- Following the protocol, it was neither re-measured nor removed. A re-check is possible on request.
+- Separately, 7 of 158 rows (all tune) have a spread between repeats above 10% (maximum 34%). Medians are reported.
+
+**Provenance, SHA-256 of outputs at this commit:**
+```
+89472bd8ee77b5033bdaeae0020b8f45d43c246df6f4692e233d5e2eb8769699  results/results.csv
+de977dda397abdfc1a11f57e4bf52e754a542f7ee35d600bef3437249bde6c12  results/figures/part3_compression.png
+184cbbbe28636bb5e394097efbdbd0202b0c2cf3d99e0fd5aa404508e72aec77  results/tables/part3_by_m.csv
+3235cfe125638cfa5a431bb566057f52ed7fa9718d5e62a305e7dde4bf649be3  results/tables/part3_rerank_cost.csv
+4646417ea287164b8e9d965a3c75b032e4fe65158724b64f1f1f3b2502033312  results/metadata/part3_sift_builds.json
+```
+
+**What M4 establishes:**
+- On SIFT-1M, nlist 4096: plain IVF-PQ recall rises with m, with diminishing returns per byte.
+- Exact re-ranking of the top 100 reaches exactly the candidate-pool recall, 0.89–0.999.
+- The re-ranking step costs about 0.02 ms per query.
+- At matched recall, re-ranking makes IVF-PQ several times faster, but costs +512 B/vector.
+
+**What it does not establish:**
+- Other nlist values or k_factors (only 10 was tested).
+- Other datasets (Part 3 is SIFT only, as specified).
+- Refine stores smaller than float32, or on disk.
+- Multi-threaded behaviour.
+- The cause of the one anomalous timing.
+
+**Remaining / next:** Milestone 5 (Part 4: dimensionality on seeded synthetic data, guarded by `55016fe`), after the author's review.
+
 ---
 
 ## 6. Algorithms, formulas and implementation decisions
@@ -870,7 +1008,7 @@ The journal commits in this workflow are made by Claude Code as part of the appr
 
 | Experiment | Hypothesis commit | Results commit | Status |
 |---|---|---|---|
-| Part 3: compression | **`55016fe`** (2026-10-17 14:43 IST, pushed to GitHub the same minute) | not yet | written by the author; the guard accepts it (section SHA-256 `f6912f61…`) |
+| Part 3: compression | **`55016fe`** (2026-10-17 14:43 IST, pushed to GitHub the same minute) | rows from `b230f71` (run 2026-10-22 08:43–09:05 UTC); journal summary in the M4 journal commit | **done**: guard passed; all 158 rows store hypothesis_commit `55016fe` + section SHA-256 `f6912f61…` |
 | Part 4: dimensionality | **`55016fe`** (same commit) | not yet | written by the author; the guard accepts it (section SHA-256 `0751800a…`) |
 
 Mechanism: decision **A6** (section 6). For each experiment, this table will hold the hypothesis commit `H`, the pre-run HEAD recorded in
@@ -892,6 +1030,8 @@ the rows, the journal commit `J`, and whether `H` was pushed to GitHub before th
 | Part 2 tune timing | tune[0:1000], R = 3 + warm-up | cost; used only for selection |
 | Part 2 eval timing | eval[0:1000], R = 5 + warm-up | A1; reported numbers |
 | Sweep stop rules | recall ≥ 0.995; QPS < exact QPS; plateau (2 × gain < 0.002); nprobe ≤ nlist | saves time; logged |
+| Part 3 nlist / m / k_factor | 4096 / {8, 16, 32, 64} / 10 (= top 100) | best plain IVF-PQ nlist in M3; m doubles from 8 B to 64 B codes; top 100 per the assignment |
+| Part 3 recall targets | 0.50, 0.80, 0.90, 0.95 | lower targets let plain IVF-PQ be compared at all |
 | `N_SPOT_CHECK` | 10 queries | cheap ground-truth sanity check. The full check is Part 1 |
 | `ANN_DATA_DIR` | default `../data` | portability |
 | `ANN_RESULTS_DIR` | default `../results` | submission layout (A4) |
@@ -950,6 +1090,13 @@ Milestone 3, **measured** 2026-10-17: **`90 passed`**.
 
 Real-data validation in M3: single-query ids equal batch ids on every timed subset (367/367 rows); thread_check PASS on 367/367.
 
+Milestone 4, **measured** 2026-10-22: **`100 passed`**.
+- +3 `pool_recall` tests: neighbours at the end of the pool are counted (and recall@10 of the same list is 0); partial counts and the cap at 1 with ties; duplicates and padding ignored.
+- +6 re-ranking tests: the wrapper shares the base index and stores the raw vectors; re-ranked recall equals pool recall and is never below plain (nprobe 1/4/32); wrong-shaped vectors are rejected before FAISS reads them.
+- +1 compile test (the new scripts are picked up automatically).
+
+Real-data validation in M4: re-ranked recall = pool recall in 78/78 rows; ids match on 158/158; thread_check PASS on 158/158.
+
 | Test file | Tests | What they verify |
 |---|---|---|
 | `test_recall.py` | 16 | perfect = 1; disjoint = 0; order-invariant; tied non-reference id counts; inside vs outside the tolerance; hand-computed 0.7; duplicates once; −1 padding and short lists keep denominator 10; −1 never counts; τ = 0; equals naive id-intersection without ties; per-row independence; shape errors; float64 distances with padding; deterministic tie order of the reference; tie statistics including tolerance sensitivity |
@@ -964,6 +1111,13 @@ Real-data validation, **measured** 2026-10-16: SIFT PASSED, GloVe PASSED (all ch
 ## 11. Bugs encountered
 
 None in Milestone 1.
+
+**Milestone 4**
+1. *Same duplicate-keyword bug as M3-1* (`search_mode`, now in the eval-row copy in `part3_compression.py`). Caught by the first `--dev` quick run, before any reportable run.
+   Lesson repeated: `TimingResult.as_row()` owns `search_mode`.
+2. *Memory-safety hazard found by a test (fixed before any real run).* `faiss.IndexRefineFlat(base, swig_ptr(x))` copies `base.ntotal` rows from a raw pointer
+   without bounds checking. With a too-short array it read past the end, with no error. `add_exact_refine` now validates `x.shape == (ntotal, d)` before the call.
+   The test checks three bad shapes.
 
 **Milestone 3**
 1. *Duplicate keyword (`search_mode`) in `part2_ann.py`.* `TimingResult.as_row()` already sets it. Caught by the first quick run (TypeError) and fixed before any reportable run.
@@ -996,6 +1150,8 @@ None in Milestone 1.
 
 Part 1 (M2): see the Milestone 2 entry in section 5. Source: `results/results.csv` rows `p1_exact` (10) and `p1_calibration` (3), commit `e098ca9`.
 
+Part 3 (M4): see the Milestone 4 entry. Source: `p3_compression` (158 rows: 79 tune + 79 eval, commit `b230f71`, hypothesis `55016fe`).
+
 Part 2 (M3): see the Milestone 3 entry. Source: `p2_ann` (367 rows: 252 tune + 115 eval, commit `78e0e5f`) and `p2_build_scaling` (6 rows, `398f56f`).
 
 ## 13. Figures and tables
@@ -1009,6 +1165,9 @@ Part 1 needs no figure. Its tables are in the M2 entry, derived from `results.cs
 | `results/tables/part2_qps_at_recall.{md,csv}` | QPS at recall 0.90/0.95: config chosen on tune, recall and QPS on eval, whether eval meets the target | same |
 | `results/tables/part2_build_cost_at_095.{md,csv}` | build time, size, bytes/vector of the 0.95 configuration | same |
 | `results/tables/part2_max_recall.{md,csv}` | best tune recall per build, the setting where it occurs, eval recall of that setting | same |
+| `results/figures/part3_compression.png` | **main Part 3 figure**: (a) eval recall vs QPS per m, plain (dashed) vs re-ranked (solid); (b) bytes/vector vs best recall, with pool recall 10@100 | `experiments/part3_report.py` |
+| `results/tables/part3_by_m.{md,csv}` | per m: memory, build time, best recall (plain / re-ranked / pool), QPS at 0.50/0.80/0.90/0.95 for both variants | same |
+| `results/tables/part3_rerank_cost.{md,csv}` | per evaluated re-ranked configuration: refine QPS, candidate (k = 100) QPS, re-rank ms per query and share of latency | same |
 
 ## 14. Limitations, assumptions, unresolved issues
 
@@ -1021,6 +1180,8 @@ Part 1 needs no figure. Its tables are in the M2 entry, derived from `results.cs
 - Part 2 sweeps for GloVe HNSW M ≤ 16 and IVF-Flat nlist ≥ 4096 ended at the end of the sweep list (1024), so those maxima are lower bounds, not ceilings.
 - The SIFT tune half is harder than the eval half (eval recall higher on all 47 selected configurations, mean +0.016). Tune selection is slightly conservative on SIFT.
 - Fixed efConstruction (200) and nbits (8); no OPQ. Different values could change the rankings at the margins (not tested).
+- Part 3: one unexplained slow eval measurement (plain m = 64, nprobe 4: 3,357 vs 6,472 QPS on tune) is kept and flagged. The re-rank ms is a difference of two medians and is unreliable when the total latency ≫ 0.02 ms.
+- Part 3 keeps the re-rank vectors in RAM as float32 (+512 B/vector). Disk-resident or compressed refine stores were not tested.
 - Build times are with 12 P-core threads. At 1 thread HNSW is about 5.5× slower and the IVF types about 1.75× slower (scaling check), so build-time comparisons depend on the thread policy.
 - The memory-bandwidth explanation of single-query speed is inferred (about 19 GB/s implied), not measured with a bandwidth benchmark. The reason 12-thread BLAS scales only 2× is not determined.
 - `results/` and `ai_log/` are not version-controlled (A4). Their history is not recoverable from git, so the hypothesis-ordering evidence relies on the mechanism in section 7.
@@ -1049,8 +1210,10 @@ Part 1 needs no figure. Its tables are in the M2 entry, derived from `results.cs
 10. ~~Secondary 12-thread batch row~~. Included as labelled secondary rows (no explicit answer was received; the recommendation was applied). Easy to drop if you prefer.
 12. ~~Review Milestone 2~~. Approved ("approved. start milestone 3").
 13. **Copy the session transcripts** into `ai_log/transcripts/`: session `9d5f9e15-…` (M1–M2) and session `815a2c47-…` (hypothesis commit + M3) when it ends.
-14. **Review Milestone 3**, in particular: (a) the tune → select → eval protocol and its sweep stop rules; (b) the sweep-limited GloVe maxima; (c) the 1,000-query QPS subsets. Then approve Milestone 4 (Part 3).
-15. **Optional decision for M4:** Part 3 needs IVF-PQ variants. Proposal: nlist = 4096 (best plain IVF-PQ in M3); m ∈ {8, 16, 32, 64} on SIFT (adds m = 8 to widen the range); plain vs + exact re-ranking of the top 100 (`IndexRefineFlat`, k_factor = 10); same tune → select → eval protocol.
+14. ~~Review Milestone 3~~. Approved ("approved. commit everything, then start milestone 4").
+15. ~~Part 3 design~~. Applied as proposed (nlist 4096, m ∈ {8,16,32,64}, k_factor 10).
+16. **Review Milestone 4**, in particular: (a) the hypothesis verdicts (yours to confirm; they are my reading of the data); (b) the memory caveat on 3.3; (c) the anomalous row (re-check or leave). Then approve Milestone 5 (Part 4).
+17. **Due 25 Oct.** Remaining: Part 4 (M5), report (M6), final `run_all.sh` check, zip. Copy the session transcripts into `ai_log/transcripts/`.
 11. **Before each Part 3/4 run:** write the hypothesis yourself, commit it, and (recommended) push it to GitHub.
 
 ## 16. Report preparation map
@@ -1058,8 +1221,8 @@ Part 1 needs no figure. Its tables are in the M2 entry, derived from `results.cs
 | Report item | Evidence needed | Source (planned) |
 |---|---|---|
 | Q1 fastest index at recall 0.95, per dataset | HNSW on both: SIFT 6,783 QPS (3.97× IVF-Flat), GloVe 762.5 (1.85×); GloVe 8.9× slower for HNSW; IVF-PQ never reaches 0.95 | M3 ✔ |
-| Q2 build time / memory; what PQ saves and loses | HNSW 47–135 s, +80.6–272 B/vec of links; IVF dominated by k-means (SIFT 5 → 74 → 292 s for nlist 1K → 4K → 16K); PQ 6.9–22.5× smaller than IVF-Flat but capped at 0.88/0.87 recall; build scaling with threads | M3 ✔, Part 3 (M4) |
-| Q3 Part 3/4 findings; when headline numbers mislead | hypothesis vs results, Part 4 figure; M3 adds: the GloVe vs SIFT gap, sweep-limited maxima | M4, M5 |
+| Q2 build time / memory; what PQ saves and loses | M3: HNSW 47–135 s, +80.6–272 B/vec of links; IVF dominated by k-means; PQ 6.9–22.5× smaller but capped at 0.88/0.87. M4: PQ = m + 10.3 B/vec; gives up recall (0.41–0.89, set by m); exact re-ranking recovers it to the pool bound (0.89–0.999) for +512 B/vec and about 0.02 ms per query | M3 ✔, M4 ✔ |
+| Q3 Part 3/4 findings; when headline numbers mislead | M4: 3.1–3.3 supported; headline 'PQ saves memory' misleads once re-ranking needs raw vectors in RAM; plain-PQ recall ceilings say nothing about pool coverage. M3: GloVe vs SIFT gap, sweep-limited maxima. Part 4 pending | M4 ✔, M5 |
 | Q4 150K vs 10M vectors, 100 ms, 16 GB | exact single-query latency: 26.3 ms (SIFT 1M), 25.0 ms (GloVe 1.18M), scan about 19 GB/s → linear in n·d (assumption to check). Flat 512 / 400 B/vector → 10M SIFT = 5.1 GB raw | M2 ✔ (measured part), M3 |
 | Q5 two ways the benchmark could mislead | M2: P vs E core (−25%), unpinned variance (7%), run-to-run 5%, FAISS default batch path, tie handling (65 SIFT queries). M3: SIFT query halves differ in difficulty (+0.016 recall); tune/eval QPS of the same configuration differ by up to 34%; build times depend on threads (HNSW 5.45×) | M2 ✔, M3 ✔ |
 | Machine specs / versions | `results/metadata/environment.json` | M1 ✔ |

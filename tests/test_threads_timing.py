@@ -82,3 +82,17 @@ def test_stale_lock_is_replaced(tmp_path):
     (tmp_path / ".benchmark.lock").write_text(json.dumps({"pid": 2**22 + 12345}))
     with benchmark_lock(tmp_path, "c"):
         pass
+
+
+def test_thread_check_is_inconclusive_for_passes_shorter_than_timer_resolution():
+    from src.timing import MIN_CHECK_WALL_S, TimingResult
+    ids = np.zeros((1, 1), dtype=np.int64)
+    # 1,000 queries at 100k QPS = 10 ms per pass: below 4 process_time ticks, so no verdict
+    short = TimingResult("single", 1000, 3, [1e5] * 3, [1.7] * 3, ids)
+    assert short.thread_check(True) == "INCONCLUSIVE"
+    # same ratio on a long pass is a real failure; a ratio of about 1 passes
+    long_fail = TimingResult("single", 1000, 3, [100.0] * 3, [1.7] * 3, ids)
+    long_ok = TimingResult("single", 1000, 3, [100.0] * 3, [1.0] * 3, ids)
+    assert long_fail.thread_check(True) == "FAIL" and long_ok.thread_check(True) == "PASS"
+    assert short.thread_check(False) == "n/a"
+    assert 1000 / 100.0 > MIN_CHECK_WALL_S

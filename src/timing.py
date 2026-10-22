@@ -23,6 +23,9 @@ from src.config import RESULTS_DIR
 from src.threads import CpuWallTimer
 
 CPU_WALL_LIMIT = 1.3   # single-threaded regions above this are flagged thread_check=FAIL
+# time.process_time() advances in 15.625 ms steps on Windows (measured in M5), so cpu/wall says
+# nothing about a pass shorter than a few ticks; such checks are reported as INCONCLUSIVE.
+MIN_CHECK_WALL_S = 0.0625
 
 
 @dataclass
@@ -45,6 +48,8 @@ class TimingResult:
     def thread_check(self, expect_single: bool) -> str:
         if not expect_single:
             return "n/a"
+        if self.n_queries / self.qps_median < MIN_CHECK_WALL_S:      # median wall time of one pass
+            return "INCONCLUSIVE"
         return "PASS" if self.cpu_wall_median <= CPU_WALL_LIMIT else "FAIL"
 
     def as_row(self) -> dict:

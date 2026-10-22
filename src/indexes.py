@@ -114,6 +114,28 @@ def build(spec: BuildSpec, x: np.ndarray, coarse: CoarseQuantizerCache | None = 
                        {"coarse_kmeans_s": kmeans_s, "train_s": t1 - t0, "add_s": t2 - t1})
 
 
+def add_exact_refine(base: faiss.Index, x: np.ndarray, k_factor: int = 10) -> tuple[faiss.IndexRefineFlat, float]:
+    """Wrap a built index with exact re-ranking (Part 3).
+
+    IndexRefineFlat keeps a full float32 copy of x. A search for k asks the base index for
+    k * k_factor candidates, recomputes their exact L2 distances and returns the best k.
+    The base index is shared, not copied: its nprobe still controls the candidate pool.
+    Returns (index, seconds spent copying the raw vectors).
+    """
+    x = np.ascontiguousarray(x, dtype=np.float32)
+    # FAISS copies base.ntotal rows from the raw pointer without any bounds check, so the shape
+    # must be validated here: a shorter array would be read past its end.
+    if x.ndim != 2 or x.shape != (base.ntotal, base.d):
+        raise ValueError(f"refine vectors have shape {x.shape}, expected ({base.ntotal}, {base.d})")
+    t0 = time.perf_counter()
+    refine = faiss.IndexRefineFlat(base, faiss.swig_ptr(x))
+    dt = time.perf_counter() - t0
+    refine.k_factor = float(k_factor)
+    if refine.ntotal != base.ntotal:
+        raise RuntimeError(f"refine ntotal {refine.ntotal} != base ntotal {base.ntotal}")
+    return refine, dt
+
+
 def set_search_param(index: faiss.Index, spec: BuildSpec, value: int) -> None:
     if spec.index_type == "HNSW":
         index.hnsw.efSearch = int(value)

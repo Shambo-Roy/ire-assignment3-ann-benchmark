@@ -26,6 +26,8 @@ COLUMNS = [
     # metrics
     "recall_at_10", "n_timed_queries", "n_repeats", "qps_median", "qps_min", "qps_max", "qps_all",
     "latency_ms_median", "build_time_s", "index_size_bytes", "bytes_per_vector",
+    # Part 3 (blank elsewhere): recall 10@100 of the candidate pool, QPS of generating it, re-ranking cost
+    "pool_recall_10at100", "candidate_qps_median", "rerank_ms_per_query",
     # outcome
     "status", "error", "notes",
 ]

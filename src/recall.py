@@ -72,8 +72,23 @@ def recall_at_k(ids: np.ndarray, dists: np.ndarray, tau: np.ndarray, k: int = 10
     A position is correct if its id is >= 0, is the first occurrence of that id in the row,
     and its true distance <= tau + rel_tol * max(tau, ABS_FLOOR). The denominator is always k.
     """
-    ids = np.asarray(ids)[:, :k]
-    dists = np.asarray(dists, dtype=np.float64)[:, :k]
+    return _correct_mask(np.asarray(ids)[:, :k], np.asarray(dists, dtype=np.float64)[:, :k],
+                         tau, rel_tol).sum(axis=1) / k
+
+
+def pool_recall(ids: np.ndarray, dists: np.ndarray, tau: np.ndarray, k: int = 10,
+                rel_tol: float = REL_TOL) -> np.ndarray:
+    """Per-query fraction of the true top-k found anywhere in a candidate pool (e.g. recall 10@100).
+
+    Same correctness rule as recall_at_k (tie-aware, first occurrence only, -1 never counts), but over
+    every column of the pool; the count is capped at k so ties beyond the boundary cannot exceed 1.
+    This is the best recall@k that exact re-ranking of this pool can achieve.
+    """
+    correct = _correct_mask(np.asarray(ids), np.asarray(dists, dtype=np.float64), tau, rel_tol)
+    return np.minimum(correct.sum(axis=1), k) / k
+
+
+def _correct_mask(ids: np.ndarray, dists: np.ndarray, tau, rel_tol: float) -> np.ndarray:
     if ids.shape != dists.shape:
         raise ValueError(f"ids {ids.shape} and dists {dists.shape} differ")
     valid = ids >= 0
@@ -85,8 +100,7 @@ def recall_at_k(ids: np.ndarray, dists: np.ndarray, tau: np.ndarray, k: int = 10
     first = np.empty_like(first_sorted)
     np.put_along_axis(first, order, first_sorted, 1)
     thr = tolerance_threshold(tau, rel_tol)[:, None]
-    correct = valid & first & (dists <= thr)
-    return correct.sum(axis=1) / k
+    return valid & first & (dists <= thr)
 
 
 def mean_recall(*args, **kwargs) -> float:

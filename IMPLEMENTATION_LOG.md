@@ -35,12 +35,12 @@ Due: 25 Oct 2026, 23:59 IST. Submission: `<rollnumber>_A3.zip` with four top-lev
 | P2.5 | Table: build time, index size, bytes/vector at recall 0.95 | COMPLETED (M3) | `results/tables/part2_build_cost_at_095.md` |
 | P2.6 | Explain any recall ceiling | COMPLETED (M3): IVF-PQ plateau set by m (quantization error); GloVe HNSW/IVF limits are sweep-limited | M3 entry, `part2_max_recall.md` |
 | P3 | Compression on SIFT: vary PQ m; IVF-PQ vs IVF-PQ + exact rerank of top 100; recall, speed, memory; hypothesis committed first | COMPLETED (M4): m ∈ {8,16,32,64}, nlist 4096; hypotheses 3.1–3.3 supported (memory caveat on 3.3) | `p3_compression` rows (158), `part3_compression.png`, `part3_*.md` |
-| P4 | Own synthetic data: dimensionality d ∈ {32, 64, 128 (control), 256, 512}, ≤ 500K vectors, seeded, ≥ 2 indexes, hypothesis committed first, 1 figure, ≤ 1 page | PLANNED | |
+| P4 | Own synthetic data: dimensionality d ∈ {32, 64, 128 (control), 256, 512}, ≤ 500K vectors, seeded, ≥ 2 indexes, hypothesis committed first, 1 figure, ≤ 1 page | COMPLETED (M5) except the ≤ 1-page write-up (M6): 100K vectors × 5 settings, seeded and fingerprinted, Flat + HNSW + IVF-Flat, guard `55016fe`, main figure | `p4_dim` rows (55), `part4_dimensionality.png`, `part4_*.md`, `src/synthetic.py` |
 | P5.1 | Report ≤ 5 pages that answers Q1–Q5 with mechanisms | PLANNED | |
 | P5.2 | Machine specs + library versions | IN PROGRESS | `results/metadata/environment.json` |
 | P5.3 | `README.md`, `requirements.txt`, `hypothesis.md` | IN PROGRESS: hypotheses written by the author and committed (`55016fe`) | files exist |
-| P5.4 | `bash run_all.sh` (full) and `--quick` (under 15 min on a laptop), run from `code/` and writing to the top-level `results/` | IN PROGRESS: stages up to Part 3. Quick: Part 1 33 s + Part 2 45 s + Part 3 2.0 min | `run_all.sh` |
-| P5.5 | `results/results.csv` (one row per run behind any reported number), `results/figures/`, at the top level | IN PROGRESS: 544 rows (Parts 1–3), 3 figures, 5 tables | `../results/` |
+| P5.4 | `bash run_all.sh` (full) and `--quick` (under 15 min on a laptop), run from `code/` and writing to the top-level `results/` | IN PROGRESS: all experiment stages (Parts 1–4). Quick: about 4 min in total (not yet timed end to end) | `run_all.sh` |
+| P5.5 | `results/results.csv` (one row per run behind any reported number), `results/figures/`, at the top level | IN PROGRESS: 599 rows (Parts 1–4), 4 figures, 8 tables | `../results/` |
 | P5.6 | `ai_log/` (top level) with all prompts and responses, plus `ai_statement.md` classifying every file | IN PROGRESS | `../ai_log/` |
 | P5.7 | No datasets or index files in the zip; no ann-benchmarks framework; no copied numbers | ENFORCED | `.gitignore`, data dir outside repo |
 | P5.8 | Own recall, timing and plotting code; FAISS for all indexes (decision A3) | POLICY | |
@@ -826,6 +826,166 @@ de977dda397abdfc1a11f57e4bf52e754a542f7ee35d600bef3437249bde6c12  results/figure
 
 **Remaining / next:** Milestone 5 (Part 4: dimensionality on seeded synthetic data, guarded by `55016fe`), after the author's review.
 
+### Milestone 5: Part 4 dimensionality on seeded synthetic data (2026-10-22)
+
+**Status:** COMPLETED. **Awaiting the author's review before Milestone 6 (report and submission).**
+
+**Provenance (A6):**
+- Hypothesis commit **`55016fe`** (author-written).
+- → M5 code `e554b4a` → thread-check fix `68efdfd` (= `git_commit` of all 55 reported `p4_dim` rows; every row also stores
+  `hypothesis_commit = 55016fe` and the Part 4 section SHA-256 `0751800a5d80a568…`) → this journal commit.
+- The guard ran first in each run.
+- Run 1 (commit `e554b4a`) was superseded by run 2 because of bug M5-2. Its log is kept as `results/metadata/part4_run1_threadcheck_flaw.log`.
+
+**Files created:** `src/synthetic.py` (the Part 4 data generator), `experiments/part4_dimensionality.py`, `experiments/part4_report.py`,
+`tests/test_synthetic.py`, `../ai_log/milestone5/{prompts,response}.md`.
+**Modified:** `src/timing.py` (INCONCLUSIVE thread check), `tests/test_threads_timing.py` (+1), `run_all.sh` (Part 4 stages), `README.md`,
+`IMPLEMENTATION_LOG.md`, `../ai_log/ai_statement.md`.
+**Outputs (outside git):**
+- `results/results.csv` (now 599 rows)
+- `results/figures/part4_dimensionality.png` (**the one main figure for Part 4**)
+- `results/tables/part4_{recall_by_d,qps_by_d,distance_stats}.{csv,md}`
+- `results/metadata/part4_distance_stats.json` (per-d statistics, data fingerprints, seed policy)
+- logs `part4.log` (run 2) and `part4_run1_threadcheck_flaw.log`
+- `results/quick/` (quick run)
+
+**Design (one property varied: dimensionality d)**
+
+| Held fixed for every d | Varied |
+|---|---|
+| Generator: x ~ N(0, I_d) float32, L2-normalised (uniform on the unit sphere), "random normalized vectors" as in hypothesis 4.1. Seed policy: `SeedSequence([12345, d]).spawn(2)` → independent base and query streams. n_base = 100,000; n_query = 1,000; Euclidean metric; tie-aware recall@10 against a float64-re-scored exact top-100. Builds: HNSW M=16, efC=200; IVF-Flat nlist=1024 (seeded k-means per d). **Fixed, pre-specified search settings:** efSearch ∈ {16, 32, 64, 128, 256}, nprobe ∈ {1, 4, 16, 64, 256}. Timing: single query, 1 thread, pinned P-core, R = 5 + warm-up | d ∈ {32, 64, **128 (control)**, 256, 512} |
+
+- Settings were **not tuned on the data**. No configuration is selected from the results, so there is no tune/eval split; all 1,000 queries are used.
+  This follows hypothesis 4.2 ("fixed, documented search settings") and avoids any selection effect.
+- Size: 5 settings × 100,000 vectors. Largest synthetic set = 100,000 (+1,000 queries), well within the assignment's 500K limit.
+- Reproducibility: each d's data has a SHA-256 fingerprint. Run 1 and run 2 produced **byte-identical data** and identical recall (max |Δ| = 0.0000 over 55 configurations).
+
+**Commands executed**
+```
+.venv/Scripts/python -m pytest -q                                          # 100 -> 109 -> 110 passed (bug M5-1)
+.venv/Scripts/python -m experiments.part4_dimensionality --quick --dev --repeats 3 ; part4_report --quick   # ~10 s
+git commit e554b4a
+.venv/Scripts/python -m experiments.part4_dimensionality                   # run 1, 4.8 min (2 thread-check FAILs -> bug M5-2)
+python -c "process_time increments over 1 s"                               # [15.625] ms
+git commit 68efdfd
+.venv/Scripts/python -m experiments.part4_dimensionality                   # run 2 (reported), 4.9 min
+.venv/Scripts/python -m experiments.part4_report
+sha256sum results/...
+```
+
+**Measured results (run 2, commit `68efdfd`; 55 rows reportable; thread_check 38 PASS / 17 INCONCLUSIVE / 0 FAIL; single == batch ids 55/55)**
+
+*Distance concentration (`part4_distance_stats.md`; Euclidean distances; all 10⁸ query–base pairs; medians over queries):*
+
+| d | Mean dist. | Std | CV = std/mean | Median NN dist. | Relative contrast (p10–p90) | d10 / mean | (d11 − d10)/d10 | Ties at rank 10 |
+|---|---|---|---|---|---|---|---|---|
+| 32 | 1.4085 | 0.1267 | 0.0900 | 0.802 | 1.755 (1.678–1.879) | 0.631 | 0.00286 | 0 |
+| 64 | 1.4114 | 0.0890 | 0.0630 | 0.991 | 1.425 (1.389–1.481) | 0.746 | 0.00165 | 0 |
+| **128** | 1.4128 | 0.0627 | 0.0444 | 1.121 | 1.261 (1.240–1.295) | 0.824 | 0.00103 | 0 |
+| 256 | 1.4135 | 0.0443 | 0.0313 | 1.211 | 1.167 (1.155–1.188) | 0.878 | 0.00070 | 0 |
+| 512 | 1.4139 | 0.0313 | 0.0221 | 1.273 | 1.111 (1.104–1.123) | 0.915 | 0.00044 | 0 |
+
+What the table shows:
+- The mean distance tends to √2 = 1.4142, as expected for random unit vectors.
+- The CV falls by √2 per doubling of d (0.0900 / 0.0221 = 4.07 ≈ √16), i.e. ∝ 1/√d.
+- The nearest neighbour moves towards the typical distance: relative contrast 1.755 → 1.111, and d10 reaches 91% of the mean distance at d = 512.
+
+*recall@10 at fixed settings (`part4_recall_by_d.md`; change vs the d = 128 control):*
+
+| Setting | d=32 | d=64 | d=128 | d=256 | d=512 |
+|---|---|---|---|---|---|
+| HNSW ef=16 | 0.539 | 0.214 | 0.078 | 0.038 | 0.023 |
+| HNSW ef=64 | 0.873 | 0.512 | 0.237 | 0.120 | 0.074 |
+| HNSW ef=256 | 0.996 (+0.419) | 0.873 (+0.296) | **0.576** | 0.351 (−0.225) | 0.231 (−0.346) |
+| IVF nprobe=16 | 0.455 | 0.268 | 0.163 | 0.115 | 0.081 |
+| IVF nprobe=64 | 0.775 | 0.541 | 0.378 | 0.290 | 0.214 |
+| IVF nprobe=256 | 0.978 (+0.242) | 0.870 (+0.133) | **0.736** | 0.630 (−0.106) | 0.529 (−0.207) |
+| Flat (exact) | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
+
+All 10 HNSW and IVF series decrease monotonically with d. Full table, including ef=32/128 and nprobe=1/4, in `results/tables/part4_recall_by_d.md`.
+
+*Equal-QPS comparison (IVF-Flat recall interpolated in log-QPS at each HNSW point's QPS; run 2):*
+
+| d | HNSW vs IVF-Flat recall at the same QPS |
+|---|---|
+| 32 | **HNSW higher at all 4 points**: e.g. 7,241 QPS: 0.967 vs 0.935; 14,341 QPS: 0.873 vs 0.817 |
+| 64 | **IVF-Flat higher at all 4 points** (gaps 0.036–0.064): 4,665 QPS: 0.705 vs 0.741 |
+| 128 | IVF-Flat higher at all 5: 1,591 QPS: 0.576 vs 0.686; 3,101 QPS: 0.385 vs 0.502 |
+| 256 | IVF-Flat higher at all 5: 1,048 QPS: 0.351 vs 0.510 |
+| 512 | IVF-Flat higher at all 5: 853 QPS: 0.231 vs 0.321 |
+
+*Throughput at fixed settings (`part4_qps_by_d.md`):* every index slows with d, because the cost per distance grows with d.
+
+| | d=32 → d=512 | Factor |
+|---|---|---|
+| Exact | 2,305 → 100 QPS | 23× (d grows 16×) |
+| HNSW ef=256 | 3,348 → 853 QPS | 3.9× |
+| IVF nprobe=256 | 5,661 → 350 QPS | 16.2× |
+
+**Hypotheses vs results** (hypotheses written by the author in `55016fe`; verdicts are the reading of the measured data, for the author to confirm)
+
+| Hypothesis | Prediction | Measured | Reading |
+|---|---|---|---|
+| **4.1** distances concentrate with d; recall@10 at a fixed budget decreases for at least some configurations | concentration ↑, recall ↓ | CV 0.090 → 0.022 (∝ 1/√d); relative contrast 1.755 → 1.111; 10/11 gap 0.0029 → 0.0004. **Every one** of the 10 ANN series loses recall monotonically with d. Example: HNSW ef=256 0.996 → 0.231, IVF nprobe=256 0.978 → 0.529 | **Supported**, and more broadly than predicted: all configurations, not just some |
+| **4.2** HNSW and IVF-Flat respond differently; their relative recall/throughput may change across d | different sensitivity; relative ranking may change | Relative to the control, HNSW changes more in both directions (ef=256: +73% at d=32, −60% at d=512) than IVF (nprobe=256: +33%, −28%). At equal QPS, the **ranking flips** between d = 32 (HNSW better) and d ≥ 64 (IVF-Flat better at every comparison point) | **Supported**: the response differs in size, and the better index changes with d |
+
+*Mechanism (inference, consistent with the measurements but not tested directly):*
+- As d grows, the true neighbours are barely closer than everything else (d10 = 0.82–0.91 × the mean distance for d ≥ 128).
+- **HNSW** steers greedily by distance comparisons. When all candidates look about equally far, each step carries little information, so a fixed efSearch beam misses more neighbours. A fixed M = 16 graph also has to cover a space of growing intrinsic dimension, which uniform data has (= d).
+- **IVF-Flat** only has to land the query's neighbours in the probed cells. On structureless data the k-means cells are arbitrary, and the 10 neighbours spread over more cells as d grows. It degrades too, but more slowly at a fixed probed fraction, and it computes exact distances inside the probed cells.
+- This explains the ranking flip, but **not tested:** graph navigation statistics (hops, distance evaluations per query) were not recorded.
+
+*Implication for report Q3:*
+- On SIFT (real, structured, d = 128) HNSW reached 0.99 recall at efSearch ≈ 100. On uniform d = 128 data, the same index reaches only 0.576 at efSearch = 256.
+- The benchmark numbers in Part 2 therefore depend on the **intrinsic structure** of the data, not on the nominal dimension.
+- On uniform data the "HNSW is fastest" headline from Part 2 **reverses** once d ≥ 64.
+
+**Bugs and anomalies**
+1. *Distance statistics used the unit-norm identity ‖q − x‖² = 2 − 2q·x.* After float32 normalisation the norms are only 1 ± 1e-7, so the mean differed from brute force by 4e-9 relative. The new test caught it.
+   **Fix:** use the actual norms (‖q‖² + ‖x‖² − 2q·x). Found before any reportable run.
+2. *Thread check gave false FAILs on very short passes.* Run 1 flagged 2 rows FAIL (cpu/wall 1.70 and 1.31). Their timed passes lasted 9.2 and 11.8 ms, while
+   `time.process_time()` on Windows advances in **15.625 ms** steps (measured), so the ratio is quantisation noise.
+   - **Fix:** `68efdfd` reports INCONCLUSIVE for passes under 62.5 ms (4 ticks), with a test.
+   - Part 4 was re-run on that commit. 17 rows are INCONCLUSIVE, 0 FAIL.
+   - Search is pinned to one logical CPU, so it cannot use more than one core anyway.
+   - Effect on earlier milestones: rows with passes under 62.5 ms were labelled PASS. That label was equally uninformative, but all of those runs were pinned to one CPU, so no measurement is affected.
+3. *Sustained slowdown in one measurement (kept, flagged).*
+   - Exact search at d = 128 measured **262.3 QPS** in run 2 (5 repeats 262.0–263.0) against 391.1 in run 1, and it breaks the smooth trend.
+   - The same kind of event as the M4 anomaly: a whole measurement uniformly slow, invisible to within-run repeats.
+   - Across all 55 configurations, run 2 / run 1 QPS = 0.67–1.19, mean |change| 4.7%, 7 configurations > 10% (mostly very fast configurations, plus this one).
+   - **Reported values = run 2** (the reportable rows).
+   - **Robustness of the equal-QPS ranking:** a 10% QPS error moves the interpolated IVF recall by at most 0.022–0.026.
+     The IVF advantage is 0.036–0.064 at d = 64 (5–25% relative), 0.056–0.117 at d = 128 (19–72%), 0.039–0.159 at d = 256 (45–102%),
+     and 0.016–0.090 at d = 512 (39–75%).
+   - So the flip is robust at d = 128 and 256, holds with a small margin at d = 64 (minimum gap 1.4× the timing effect), and
+     the single fastest d = 512 point (gap 0.016) is within timing noise.
+
+**Provenance (A6), SHA-256 of outputs at this commit:**
+```
+38ae45bf357ae37e7ee010a4bdf084721b9c455b87fe55fd737a9f639b69536f  results/results.csv
+0f65ba57bb92025e6ec14e079478e319ff30925ffe4f5394273227a9f6da3b86  results/figures/part4_dimensionality.png
+14dd75ece75d43fd8a693dad2f6564e6d43f6370f9b0c9c8135d3c378afafba2  results/tables/part4_recall_by_d.csv
+8736f05cca39a1741a6f7cfa715c25c02f18b708b14e6fcd3660a00517d75b04  results/tables/part4_qps_by_d.csv
+705b6f51e4a15363c7fb9178a564149487c39dc3d053434c03d823f78d2ad514  results/tables/part4_distance_stats.csv
+76efc0fc1ecb7915b39ebc95dd3ffe8a31af02059c707034ab832bb586275558  results/metadata/part4_distance_stats.json
+```
+
+**What M5 establishes:**
+- On seeded uniform unit-sphere data with n = 100K, distances concentrate as 1/√d.
+- At fixed search budgets, HNSW and IVF-Flat both lose recall steadily with d.
+- HNSW is more sensitive to d, and its advantage at equal QPS reverses above d = 32.
+- The data generation is exactly reproducible.
+
+**What it does not establish:**
+- The behaviour of *structured* data whose intrinsic dimension differs from d (for example clustered data or real embeddings).
+- The cost of keeping recall constant as d grows (settings were fixed by design).
+- Other M, efConstruction or nlist values per d.
+- Other n.
+- IVF-PQ.
+- The causal mechanism (graph or cell statistics not recorded).
+
+**Remaining / next:** Milestone 6, the report (≤ 5 pages; Part 4 gets one main figure and ≤ 1 page), the final `run_all.sh` check, and the submission zip.
+
 ---
 
 ## 6. Algorithms, formulas and implementation decisions
@@ -1009,7 +1169,7 @@ The journal commits in this workflow are made by Claude Code as part of the appr
 | Experiment | Hypothesis commit | Results commit | Status |
 |---|---|---|---|
 | Part 3: compression | **`55016fe`** (2026-10-17 14:43 IST, pushed to GitHub the same minute) | rows from `b230f71` (run 2026-10-22 08:43–09:05 UTC); journal summary in the M4 journal commit | **done**: guard passed; all 158 rows store hypothesis_commit `55016fe` + section SHA-256 `f6912f61…` |
-| Part 4: dimensionality | **`55016fe`** (same commit) | not yet | written by the author; the guard accepts it (section SHA-256 `0751800a…`) |
+| Part 4: dimensionality | **`55016fe`** (same commit) | rows from `68efdfd` (run 2026-10-22; run 1 on `e554b4a` superseded); journal summary in the M5 journal commit | **done**: guard passed in both runs; all 55 rows store hypothesis_commit `55016fe` + section SHA-256 `0751800a…` |
 
 Mechanism: decision **A6** (section 6). For each experiment, this table will hold the hypothesis commit `H`, the pre-run HEAD recorded in
 the rows, the journal commit `J`, and whether `H` was pushed to GitHub before the run (with the push time shown on GitHub).
@@ -1032,6 +1192,9 @@ the rows, the journal commit `J`, and whether `H` was pushed to GitHub before th
 | Sweep stop rules | recall ≥ 0.995; QPS < exact QPS; plateau (2 × gain < 0.002); nprobe ≤ nlist | saves time; logged |
 | Part 3 nlist / m / k_factor | 4096 / {8, 16, 32, 64} / 10 (= top 100) | best plain IVF-PQ nlist in M3; m doubles from 8 B to 64 B codes; top 100 per the assignment |
 | Part 3 recall targets | 0.50, 0.80, 0.90, 0.95 | lower targets let plain IVF-PQ be compared at all |
+| Part 4 data | Gaussian → L2-normalised, n = 100,000, 1,000 queries, `SeedSequence([12345, d]).spawn(2)` | hypothesis 4.1 "random normalized vectors"; one stream per d and per role |
+| Part 4 settings | HNSW M=16 efC=200, ef ∈ {16,32,64,128,256}; IVF-Flat nlist=1024, nprobe ∈ {1,4,16,64,256} | fixed and pre-specified (hypothesis 4.2); never tuned on the data |
+| `MIN_CHECK_WALL_S` | 0.0625 s | 4 ticks of the 15.625 ms Windows `process_time` clock; shorter passes → INCONCLUSIVE |
 | `N_SPOT_CHECK` | 10 queries | cheap ground-truth sanity check. The full check is Part 1 |
 | `ANN_DATA_DIR` | default `../data` | portability |
 | `ANN_RESULTS_DIR` | default `../results` | submission layout (A4) |
@@ -1097,6 +1260,14 @@ Milestone 4, **measured** 2026-10-22: **`100 passed`**.
 
 Real-data validation in M4: re-ranked recall = pool recall in 78/78 rows; ids match on 158/158; thread_check PASS on 158/158.
 
+Milestone 5, **measured** 2026-10-22: **`110 passed`**.
+- +6 in `test_synthetic.py`: deterministic and seed-dependent generation; separate streams per d and per role (queries unchanged by n_base);
+  unit norm, float32, contiguous, id string (d = 32/128/512); distance statistics equal brute force (mean to 1e-9 relative) and concentrate with d (mean → √2, CV and relative contrast fall).
+- +1 thread-check test (INCONCLUSIVE below 62.5 ms; FAIL/PASS above).
+- +3 compile tests (`src/synthetic.py` and the two Part 4 scripts).
+
+Real-data validation in M5: byte-identical data and recall in two runs; ids match on 55/55; 0 thread-check FAILs.
+
 | Test file | Tests | What they verify |
 |---|---|---|
 | `test_recall.py` | 16 | perfect = 1; disjoint = 0; order-invariant; tied non-reference id counts; inside vs outside the tolerance; hand-computed 0.7; duplicates once; −1 padding and short lists keep denominator 10; −1 never counts; τ = 0; equals naive id-intersection without ties; per-row independence; shape errors; float64 distances with padding; deterministic tie order of the reference; tie statistics including tolerance sensitivity |
@@ -1111,6 +1282,11 @@ Real-data validation, **measured** 2026-10-16: SIFT PASSED, GloVe PASSED (all ch
 ## 11. Bugs encountered
 
 None in Milestone 1.
+
+**Milestone 5**
+1. *Distance statistics assumed exactly unit norms* (2 − 2q·x), giving a 4e-9 relative error. Fixed to use the actual norms; caught by the new brute-force test before any reportable run.
+2. *Thread check gave false FAILs for passes under one CPU-clock tick* (`process_time` resolution 15.625 ms on Windows, measured). Fixed in `68efdfd` (INCONCLUSIVE); Part 4 re-run.
+3. *A diagnostic one-liner hung.* It waited for 6 distinct `process_time` increments, but every increment is identical. Stopped (TaskStop) and rewritten as a fixed 1-second loop. No effect on the results.
 
 **Milestone 4**
 1. *Same duplicate-keyword bug as M3-1* (`search_mode`, now in the eval-row copy in `part3_compression.py`). Caught by the first `--dev` quick run, before any reportable run.
@@ -1150,6 +1326,8 @@ None in Milestone 1.
 
 Part 1 (M2): see the Milestone 2 entry in section 5. Source: `results/results.csv` rows `p1_exact` (10) and `p1_calibration` (3), commit `e098ca9`.
 
+Part 4 (M5): see the Milestone 5 entry. Source: `p4_dim` (55 rows, commit `68efdfd`, hypothesis `55016fe`) and `results/metadata/part4_distance_stats.json`.
+
 Part 3 (M4): see the Milestone 4 entry. Source: `p3_compression` (158 rows: 79 tune + 79 eval, commit `b230f71`, hypothesis `55016fe`).
 
 Part 2 (M3): see the Milestone 3 entry. Source: `p2_ann` (367 rows: 252 tune + 115 eval, commit `78e0e5f`) and `p2_build_scaling` (6 rows, `398f56f`).
@@ -1168,6 +1346,10 @@ Part 1 needs no figure. Its tables are in the M2 entry, derived from `results.cs
 | `results/figures/part3_compression.png` | **main Part 3 figure**: (a) eval recall vs QPS per m, plain (dashed) vs re-ranked (solid); (b) bytes/vector vs best recall, with pool recall 10@100 | `experiments/part3_report.py` |
 | `results/tables/part3_by_m.{md,csv}` | per m: memory, build time, best recall (plain / re-ranked / pool), QPS at 0.50/0.80/0.90/0.95 for both variants | same |
 | `results/tables/part3_rerank_cost.{md,csv}` | per evaluated re-ranked configuration: refine QPS, candidate (k = 100) QPS, re-rank ms per query and share of latency | same |
+| `results/figures/part4_dimensionality.png` | **main Part 4 figure**: (a) recall@10 vs d at each fixed setting (HNSW solid, IVF-Flat dashed); (b) single-thread QPS vs d with the exact baseline; (c) distance concentration vs d (relative contrast − 1 with p10–p90 band, CV, 10/11 gap) | `experiments/part4_report.py` |
+| `results/tables/part4_recall_by_d.{md,csv}` | recall per setting and d, with the change vs the d = 128 control | same |
+| `results/tables/part4_qps_by_d.{md,csv}` | QPS per setting and d | same |
+| `results/tables/part4_distance_stats.{md,csv}` | distance statistics, ties and data fingerprint per d | same |
 
 ## 14. Limitations, assumptions, unresolved issues
 
@@ -1181,6 +1363,8 @@ Part 1 needs no figure. Its tables are in the M2 entry, derived from `results.cs
 - The SIFT tune half is harder than the eval half (eval recall higher on all 47 selected configurations, mean +0.016). Tune selection is slightly conservative on SIFT.
 - Fixed efConstruction (200) and nbits (8); no OPQ. Different values could change the rankings at the margins (not tested).
 - Part 3: one unexplained slow eval measurement (plain m = 64, nprobe 4: 3,357 vs 6,472 QPS on tune) is kept and flagged. The re-rank ms is a difference of two medians and is unreliable when the total latency ≫ 0.02 ms.
+- Part 4 uses uniform (structureless) data, so its intrinsic dimension equals d. Structured data was not tested. Settings are fixed by design, so the cost of *constant* recall vs d was not measured.
+- Run-to-run QPS variation measured on identical data (Part 4, 55 configurations): mean |change| 4.7%, range 0.67–1.19×. One sustained slowdown (exact, d = 128: 262 vs 391 QPS) is kept and flagged.
 - Part 3 keeps the re-rank vectors in RAM as float32 (+512 B/vector). Disk-resident or compressed refine stores were not tested.
 - Build times are with 12 P-core threads. At 1 thread HNSW is about 5.5× slower and the IVF types about 1.75× slower (scaling check), so build-time comparisons depend on the thread policy.
 - The memory-bandwidth explanation of single-query speed is inferred (about 19 GB/s implied), not measured with a bandwidth benchmark. The reason 12-thread BLAS scales only 2× is not determined.
@@ -1212,7 +1396,8 @@ Part 1 needs no figure. Its tables are in the M2 entry, derived from `results.cs
 13. **Copy the session transcripts** into `ai_log/transcripts/`: session `9d5f9e15-…` (M1–M2) and session `815a2c47-…` (hypothesis commit + M3) when it ends.
 14. ~~Review Milestone 3~~. Approved ("approved. commit everything, then start milestone 4").
 15. ~~Part 3 design~~. Applied as proposed (nlist 4096, m ∈ {8,16,32,64}, k_factor 10).
-16. **Review Milestone 4**, in particular: (a) the hypothesis verdicts (yours to confirm; they are my reading of the data); (b) the memory caveat on 3.3; (c) the anomalous row (re-check or leave). Then approve Milestone 5 (Part 4).
+16. ~~Review Milestone 4~~. Approved ("start milestone 5"). The Part 3 verdicts were not explicitly confirmed; please confirm them in the report.
+18. **Review Milestone 5**: (a) the 4.1/4.2 verdicts (yours to confirm); (b) the fixed-settings design (no tuning, so no split); (c) the robustness caveat on the equal-QPS flip at d = 64 and 512.
 17. **Due 25 Oct.** Remaining: Part 4 (M5), report (M6), final `run_all.sh` check, zip. Copy the session transcripts into `ai_log/transcripts/`.
 11. **Before each Part 3/4 run:** write the hypothesis yourself, commit it, and (recommended) push it to GitHub.
 
@@ -1222,7 +1407,7 @@ Part 1 needs no figure. Its tables are in the M2 entry, derived from `results.cs
 |---|---|---|
 | Q1 fastest index at recall 0.95, per dataset | HNSW on both: SIFT 6,783 QPS (3.97× IVF-Flat), GloVe 762.5 (1.85×); GloVe 8.9× slower for HNSW; IVF-PQ never reaches 0.95 | M3 ✔ |
 | Q2 build time / memory; what PQ saves and loses | M3: HNSW 47–135 s, +80.6–272 B/vec of links; IVF dominated by k-means; PQ 6.9–22.5× smaller but capped at 0.88/0.87. M4: PQ = m + 10.3 B/vec; gives up recall (0.41–0.89, set by m); exact re-ranking recovers it to the pool bound (0.89–0.999) for +512 B/vec and about 0.02 ms per query | M3 ✔, M4 ✔ |
-| Q3 Part 3/4 findings; when headline numbers mislead | M4: 3.1–3.3 supported; headline 'PQ saves memory' misleads once re-ranking needs raw vectors in RAM; plain-PQ recall ceilings say nothing about pool coverage. M3: GloVe vs SIFT gap, sweep-limited maxima. Part 4 pending | M4 ✔, M5 |
+| Q3 Part 3/4 findings; when headline numbers mislead | M4: 3.1–3.3 supported; 'PQ saves memory' misleads once re-ranking needs raw vectors in RAM. M5: 4.1–4.2 supported; on uniform data HNSW loses its equal-QPS lead above d = 32, and at d = 128 reaches only 0.58 recall at ef = 256 against 0.99 at ef ≈ 100 on SIFT, so the headline numbers depend on intrinsic structure. M3: GloVe vs SIFT gap, sweep-limited maxima | M4 ✔, M5 ✔ |
 | Q4 150K vs 10M vectors, 100 ms, 16 GB | exact single-query latency: 26.3 ms (SIFT 1M), 25.0 ms (GloVe 1.18M), scan about 19 GB/s → linear in n·d (assumption to check). Flat 512 / 400 B/vector → 10M SIFT = 5.1 GB raw | M2 ✔ (measured part), M3 |
-| Q5 two ways the benchmark could mislead | M2: P vs E core (−25%), unpinned variance (7%), run-to-run 5%, FAISS default batch path, tie handling (65 SIFT queries). M3: SIFT query halves differ in difficulty (+0.016 recall); tune/eval QPS of the same configuration differ by up to 34%; build times depend on threads (HNSW 5.45×) | M2 ✔, M3 ✔ |
+| Q5 two ways the benchmark could mislead | M2: P vs E core (−25%), unpinned variance (7%), run-to-run 5%, FAISS default batch path, tie handling (65 SIFT queries). M3: SIFT query halves differ in difficulty (+0.016 recall); tune/eval QPS differ by up to 34%; build times depend on threads (HNSW 5.45×). M4/M5: sustained slowdowns invisible to within-run repeats (2 cases, −33% to −48%); run-to-run on identical data 4.7% mean; cpu/wall checks need passes ≥ 62.5 ms on Windows | M2 ✔, M3 ✔, M5 ✔ |
 | Machine specs / versions | `results/metadata/environment.json` | M1 ✔ |

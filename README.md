@@ -11,7 +11,8 @@ synthetic dimensionality experiment (Part 4).
 - **Milestone 3 (Part 2 ANN benchmarks): COMPLETED** on 2026-10-17. 367 rows, 2 figures, 3 tables; plus a build-scaling check.
 - **Hypotheses for Parts 3 and 4:** written by the author and committed in `55016fe` (pushed) before any Part 3/4 run.
 - **Milestone 4 (Part 3 compression): COMPLETED** on 2026-10-22. 158 rows (guarded by hypothesis `55016fe`), main figure, 2 tables.
-- **Next:** Milestone 5 (Part 4 dimensionality), after review. See `IMPLEMENTATION_LOG.md` for the full record.
+- **Milestone 5 (Part 4 dimensionality, synthetic data): COMPLETED** on 2026-10-22. 55 rows (guarded by `55016fe`), main figure, 3 tables.
+- **Next:** Milestone 6, the report (≤ 5 pages), the final `run_all.sh` check and the submission zip. See `IMPLEMENTATION_LOG.md`.
 
 Part 1 headline numbers (eval queries, 1 thread pinned to a P-core, median of 5):
 
@@ -44,6 +45,18 @@ Part 3 headline numbers (SIFT-1M, IVF-PQ nlist 4096; eval):
 Re-ranked recall equals the recall 10@100 of the candidate pool in every row. Re-ranking costs about 0.02 ms per query.
 Figure: `../results/figures/part3_compression.png`.
 
+Part 4 headline numbers (seeded random unit vectors, n = 100,000, 1,000 queries; fixed settings):
+
+| d | Relative contrast | HNSW ef=256 recall | IVF-Flat nprobe=256 recall | Better at equal QPS |
+|---|---|---|---|---|
+| 32 | 1.755 | 0.996 | 0.978 | HNSW |
+| 64 | 1.425 | 0.873 | 0.870 | IVF-Flat |
+| 128 (control) | 1.261 | 0.576 | 0.736 | IVF-Flat |
+| 256 | 1.167 | 0.351 | 0.630 | IVF-Flat |
+| 512 | 1.111 | 0.231 | 0.529 | IVF-Flat |
+
+Figure: `../results/figures/part4_dimensionality.png`. Generator: `src/synthetic.py` (seeded, with data fingerprints).
+
 ## Directory layout
 
 The submission root holds four items: `report.pdf`, `code/`, `results/` and `ai_log/`. Code writes its outputs
@@ -70,7 +83,8 @@ Assignment 3/                    # submission root
     │   ├── provenance.py        # git provenance, hypothesis guard for Parts 3/4
     │   ├── results_io.py        # results.csv schema and writer
     │   ├── indexes.py           # FAISS HNSW / IVF-Flat / IVF-PQ builders, shared seeded k-means
-    │   └── pareto.py            # Pareto front and target-recall selection
+    │   ├── pareto.py            # Pareto front and target-recall selection
+    │   └── synthetic.py         # Part 4 seeded data generator + distance statistics
     ├── tests/                   # pytest unit tests (synthetic HDF5 fixtures, no real data needed)
     ├── experiments/
     │   ├── part1_exact.py       # Part 1 driver
@@ -79,6 +93,8 @@ Assignment 3/                    # submission root
     │   ├── build_scaling.py     # build time with P-core threads vs 1 thread
     │   ├── part3_compression.py # Part 3 driver (hypothesis guard first)
     │   ├── part3_report.py      # Part 3 figure and tables
+    │   ├── part4_dimensionality.py # Part 4 driver (hypothesis guard first)
+    │   ├── part4_report.py      # Part 4 figure and tables
     │   └── probes/              # diagnostics behind design decisions (Windows)
     ├── hypothesis.md            # Part 3 / Part 4 hypotheses (author-written, committed first)
     ├── IMPLEMENTATION_LOG.md    # technical journal
@@ -128,7 +144,9 @@ To keep the data somewhere else, set `ANN_DATA_DIR` to that folder. Do not renam
 | `.venv/Scripts/python -m experiments.build_scaling [--quick]` | build-time scaling check (about 9 min) |
 | `.venv/Scripts/python -m experiments.part3_compression [--quick] [--dev]` | Part 3 (about 22 min; quick about 2 min). Refuses to start (exit 3) unless the Part 3 hypothesis is committed and the tree is clean; `--dev` allows a dirty tree but marks rows non-reportable |
 | `.venv/Scripts/python -m experiments.part3_report [--quick]` | Part 3 figure and tables from results.csv |
-| `bash run_all.sh` / `bash run_all.sh --quick` | environment, tests, validation, Parts 1-3 (quick: about 4 min in total) |
+| `.venv/Scripts/python -m experiments.part4_dimensionality [--quick] [--dev]` | Part 4 (about 5 min; quick about 10 s); hypothesis guard first, as in Part 3 |
+| `.venv/Scripts/python -m experiments.part4_report [--quick]` | Part 4 figure and tables |
+| `bash run_all.sh` / `bash run_all.sh --quick` | environment, tests, validation, Parts 1-4 (quick: a few minutes; full: about 2.5 h) |
 
 Benchmarks hold a lock file `../results/.benchmark.lock`, so two cannot run at once. Do not edit tracked files while a
 benchmark is running: rows record the git state, and a dirty tree makes them non-reportable.
@@ -166,13 +184,16 @@ Legend: [x] done and validated, [~] partially done, [ ] not started, [!] blocked
 - [x] tuned on the first 5,000 queries, evaluated on the last 5,000; hypotheses 3.1-3.3 evaluated in IMPLEMENTATION_LOG.md (M4)
 
 **Part 4: dimensionality (synthetic)**
-- [x] hypothesis committed first (`55016fe`), [ ] seeded generator, [ ] d = 32/64/128(control)/256/512, exact + HNSW + IVF-Flat, [ ] main figure
+- [x] hypothesis committed first (`55016fe`; the guard ran before each run)
+- [x] seeded generator (`src/synthetic.py`; byte-identical across runs, fingerprinted)
+- [x] d = 32/64/128 (control)/256/512, 100K vectors, 1K queries, exact + HNSW + IVF-Flat at fixed settings
+- [x] main figure (`part4_dimensionality.png`); [ ] ≤ 1-page write-up (in the report, M6)
 
 **Part 5: report and submission**
 - [~] environment and version record (`results/metadata/environment.json`)
 - [~] README / requirements.txt / hypothesis.md (exist, will grow)
-- [~] top-level results/results.csv (Parts 1-3: 544 rows), results/figures/ (3 figures), results/tables/
-- [~] run_all.sh (+ --quick under 15 min): stages up to Part 3
+- [x] top-level results/results.csv (Parts 1-4: 599 rows), results/figures/ (4 figures), results/tables/
+- [~] run_all.sh (+ --quick under 15 min): all stages present; end-to-end timing check pending (M6)
 - [~] top-level ai_log/ (Milestone 1 prompt and response; the author still has to copy in the transcript)
 - [ ] report.pdf (max 5 pages, answers Q1-Q5)
 
@@ -206,6 +227,6 @@ Diagnostic probes for the thread controls are in `experiments/probes/` (Windows 
 
 ## Next milestone
 
-Milestone 5 covers Part 4: dimensionality on seeded synthetic data. It uses random normalised vectors with d = 32, 64, 128 (control),
-256 and 512; 100,000 base vectors and 1,000 queries per setting; exact search, HNSW and IVF-Flat; and one main figure.
-It is guarded by the committed hypothesis (`55016fe`).
+Milestone 6 covers the report: at most 5 pages answering Q1-Q5 with mechanisms, with the figures and tables from Parts 1-4, and Part 4
+in one page with one figure. It also covers an end-to-end `bash run_all.sh --quick` timing check (must be under 15 min), README run
+instructions, and assembling the submission zip (report.pdf, code/ with .git, results/, ai_log/; no data or index files).

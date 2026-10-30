@@ -98,7 +98,7 @@ Assignment 3/                    # submission root
     │   └── probes/              # diagnostics behind design decisions (Windows)
     ├── hypothesis.md            # Part 3 / Part 4 hypotheses (author-written, committed first)
     ├── IMPLEMENTATION_LOG.md    # technical journal
-    ├── run_all.sh               # one-command reproduction (partial)
+    ├── run_all.sh               # one-command reproduction
     └── requirements.txt
 ```
 

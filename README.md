@@ -12,7 +12,7 @@ synthetic dimensionality experiment (Part 4).
 - **Hypotheses for Parts 3 and 4:** written by the author and committed in `55016fe` (pushed) before any Part 3/4 run.
 - **Milestone 4 (Part 3 compression): COMPLETED** on 2026-10-22. 158 rows (guarded by hypothesis `55016fe`), main figure, 2 tables.
 - **Milestone 5 (Part 4 dimensionality, synthetic data): COMPLETED** on 2026-10-22. 55 rows (guarded by `55016fe`), main figure, 3 tables.
-- **Next:** Milestone 6, the report (≤ 5 pages), the final `run_all.sh` check and the submission zip. See `IMPLEMENTATION_LOG.md`.
+- **Milestone 6 (report and submission): COMPLETED** on 2026-10-30. `bash run_all.sh --quick` took 4 min 19 s on the dev desktop. See `IMPLEMENTATION_LOG.md`.
 
 Part 1 headline numbers (eval queries, 1 thread pinned to a P-core, median of 5):
 
@@ -187,15 +187,15 @@ Legend: [x] done and validated, [~] partially done, [ ] not started, [!] blocked
 - [x] hypothesis committed first (`55016fe`; the guard ran before each run)
 - [x] seeded generator (`src/synthetic.py`; byte-identical across runs, fingerprinted)
 - [x] d = 32/64/128 (control)/256/512, 100K vectors, 1K queries, exact + HNSW + IVF-Flat at fixed settings
-- [x] main figure (`part4_dimensionality.png`); [ ] ≤ 1-page write-up (in the report, M6)
+- [x] main figure (`part4_dimensionality.png`); ≤ 1-page write-up in the report
 
 **Part 5: report and submission**
 - [~] environment and version record (`results/metadata/environment.json`)
 - [~] README / requirements.txt / hypothesis.md (exist, will grow)
 - [x] top-level results/results.csv (Parts 1-4: 599 rows), results/figures/ (4 figures), results/tables/
-- [~] run_all.sh (+ --quick under 15 min): all stages present; end-to-end timing check pending (M6)
-- [~] top-level ai_log/ (Milestone 1 prompt and response; the author still has to copy in the transcript)
-- [ ] report.pdf (max 5 pages, answers Q1-Q5)
+- [x] run_all.sh --quick under 15 min (259 s, measured); full mode: stages run separately, about 2.2 h in total
+- [x] top-level ai_log/ (prompts, responses, readable transcript, ai_statement.md)
+- [x] report.pdf (5 pages, answers Q1-Q5; author-written)
 
 **Provenance (design approved)**
 - [x] hypothesis guard: Part 3/4 refuse to start if the hypothesis is missing, empty, template-only or uncommitted (used for Part 3; refused a dirty-tree run as designed)
@@ -225,8 +225,17 @@ Part 3/4 drivers call a hypothesis guard first. It refuses to run (exit 3) unles
 filled in, committed, and identical to the committed version. Details: `IMPLEMENTATION_LOG.md`, decisions A5 and A6.
 Diagnostic probes for the thread controls are in `experiments/probes/` (Windows only).
 
-## Next milestone
+## Reproducing the results
 
-Milestone 6 covers the report: at most 5 pages answering Q1-Q5 with mechanisms, with the figures and tables from Parts 1-4, and Part 4
-in one page with one figure. It also covers an end-to-end `bash run_all.sh --quick` timing check (must be under 15 min), README run
-instructions, and assembling the submission zip (report.pdf, code/ with .git, results/, ai_log/; no data or index files).
+From inside `code/`, with the datasets in `../data/` and the environment set up as above:
+
+```bash
+bash run_all.sh --quick
+```
+
+```bash
+bash run_all.sh
+```
+
+`--quick` uses the first 100,000 base vectors (20,000 for Part 4) and writes to `../results/quick/`. It took 4 min 19 s on the dev desktop.
+The full run writes to `../results/` and takes about 2.2 hours.

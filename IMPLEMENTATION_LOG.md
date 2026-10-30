@@ -36,12 +36,12 @@ Due: 25 Oct 2026, 23:59 IST. Submission: `<rollnumber>_A3.zip` with four top-lev
 | P2.6 | Explain any recall ceiling | COMPLETED (M3): IVF-PQ plateau set by m (quantization error); GloVe HNSW/IVF limits are sweep-limited | M3 entry, `part2_max_recall.md` |
 | P3 | Compression on SIFT: vary PQ m; IVF-PQ vs IVF-PQ + exact rerank of top 100; recall, speed, memory; hypothesis committed first | COMPLETED (M4): m ∈ {8,16,32,64}, nlist 4096; hypotheses 3.1–3.3 supported (memory caveat on 3.3) | `p3_compression` rows (158), `part3_compression.png`, `part3_*.md` |
 | P4 | Own synthetic data: dimensionality d ∈ {32, 64, 128 (control), 256, 512}, ≤ 500K vectors, seeded, ≥ 2 indexes, hypothesis committed first, 1 figure, ≤ 1 page | COMPLETED (M5) except the ≤ 1-page write-up (M6): 100K vectors × 5 settings, seeded and fingerprinted, Flat + HNSW + IVF-Flat, guard `55016fe`, main figure | `p4_dim` rows (55), `part4_dimensionality.png`, `part4_*.md`, `src/synthetic.py` |
-| P5.1 | Report ≤ 5 pages that answers Q1–Q5 with mechanisms | PLANNED | |
+| P5.1 | Report ≤ 5 pages that answers Q1–Q5 with mechanisms | COMPLETED (author-written, 5 pages, reviewed) | `../report.pdf` |
 | P5.2 | Machine specs + library versions | IN PROGRESS | `results/metadata/environment.json` |
 | P5.3 | `README.md`, `requirements.txt`, `hypothesis.md` | IN PROGRESS: hypotheses written by the author and committed (`55016fe`) | files exist |
-| P5.4 | `bash run_all.sh` (full) and `--quick` (under 15 min on a laptop), run from `code/` and writing to the top-level `results/` | IN PROGRESS: all experiment stages (Parts 1–4). Quick: about 4 min in total (not yet timed end to end) | `run_all.sh` |
+| P5.4 | `bash run_all.sh` (full) and `--quick` (under 15 min on a laptop), run from `code/` and writing to the top-level `results/` | COMPLETED for `--quick` (259 s, exit 0). Full mode: stages run separately, not as one command | `run_all.sh`, `run_all_quick.log` |
 | P5.5 | `results/results.csv` (one row per run behind any reported number), `results/figures/`, at the top level | IN PROGRESS: 599 rows (Parts 1–4), 4 figures, 8 tables | `../results/` |
-| P5.6 | `ai_log/` (top level) with all prompts and responses, plus `ai_statement.md` classifying every file | IN PROGRESS | `../ai_log/` |
+| P5.6 | `ai_log/` (top level) with all prompts and responses, plus `ai_statement.md` classifying every file | COMPLETED (author to confirm classifications) | `../ai_log/` |
 | P5.7 | No datasets or index files in the zip; no ann-benchmarks framework; no copied numbers | ENFORCED | `.gitignore`, data dir outside repo |
 | P5.8 | Own recall, timing and plotting code; FAISS for all indexes (decision A3) | POLICY | |
 | P5.9 | Git history shows each hypothesis committed before its results | PLANNED | mechanism in section 7 (results are not in git) |
@@ -985,6 +985,31 @@ All 10 HNSW and IVF series decrease monotonically with d. Full table, including 
 - The causal mechanism (graph or cell statistics not recorded).
 
 **Remaining / next:** Milestone 6, the report (≤ 5 pages; Part 4 gets one main figure and ≤ 1 page), the final `run_all.sh` check, and the submission zip.
+
+### Milestone 6: report review and submission package (2026-10-30)
+
+**Status:** COMPLETED by Claude Code, pending the author's final report edits and upload. The submission zip was built locally.
+
+**What was done**
+1. *Report review.* The author wrote the report. Claude Code checked two versions against `results.csv` and the assignment PDF. Every number
+   in the revised report matches the measurements, and all required items are present. Remaining suggestions were reported to the author and are the
+   author's to apply.
+2. *Quick-run check (measured):* `bash run_all.sh --quick` on commit `3d04b65`: **exit 0, 259 s (4 min 19 s) wall time**, 110 tests passed, both datasets
+   validated, both hypothesis guards accepted (`results/metadata/run_all_quick.log`). This was on the dev desktop, not a laptop.
+   `results.csv` was unchanged (SHA-256 still `38ae45bf…`). `environment.json` was rewritten with a new timestamp, so its M2 hash no longer applies.
+3. *`run_all.sh`:* build scaling added to `--quick` so that quick mode does the same stages as the full run; "partial" status removed (`3d04b65`).
+4. *AI log:* readable transcript exported to `ai_log/transcripts/session_transcript.md` (every prompt and text response of both sessions;
+   tool calls by name only; no tool outputs, reasoning or injected system context).
+5. *Zip:* `2026801007_A3.zip` with `report.pdf`, `code/` (with `.git`), `results/` and `ai_log/`.
+
+**Bugs**
+1. *Working-copy line endings.* 10 tracked files had CRLF in the working copy (rewritten by Python on Windows) although git stored LF, including `run_all.sh`, which
+   would fail under bash on Linux. Restored from git. Later edits write LF explicitly. The zip was checked for CRLF in `run_all.sh`.
+
+**Limitations**
+- The full `bash run_all.sh` was never run as one command. Its stages were each run separately (Parts 1–4, about 2.2 hours in total).
+- The quick timing is from this desktop; the assignment's limit refers to a laptop.
+- Submission is after the 25 Oct deadline, so the course's late policy applies.
 
 ---
 
